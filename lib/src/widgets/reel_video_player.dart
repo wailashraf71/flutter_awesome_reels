@@ -31,10 +31,10 @@ class ReelVideoPlayer extends StatefulWidget {
   State<ReelVideoPlayer> createState() => _ReelVideoPlayerState();
 }
 
-class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
-  final RxBool _isVisible = false.obs;
+class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVisible = false.obs;
   final RxBool _showPlayPauseIcon = false.obs;
   final RxBool _isLongPressing = false.obs;
+  bool _wasPlayingBeforeLongPress = false;
 
   @override
   Widget build(BuildContext context) {
@@ -232,15 +232,15 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       }),
     );
   }
-
   void _onLongPressStart(LongPressStartDetails details) {
     _isLongPressing.value = true;
+    _wasPlayingBeforeLongPress = widget.controller.isPlaying;
     widget.controller.pause();
   }
 
   void _onLongPressEnd(LongPressEndDetails details) {
     _isLongPressing.value = false;
-    if (_isVisible.value) {
+    if (_isVisible.value && _wasPlayingBeforeLongPress) {
       widget.controller.play();
     }
   }

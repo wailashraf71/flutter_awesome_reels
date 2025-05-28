@@ -218,12 +218,11 @@ class ReelOverlay extends StatelessWidget {
                     ),
                 ],
               ),
-            ),
-            if (config.showFollowButton && !(reel.user?.isFollowing ?? true))
+            ),            if (config.showFollowButton && !(reel.user?.isFollowing ?? true))
               OutlinedButton(
                 onPressed: () => _handleFollow(context, controller),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: config.accentColor),
+                  side: BorderSide(color: config.followButtonColor),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 4,
@@ -232,7 +231,7 @@ class ReelOverlay extends StatelessWidget {
                 child: Text(
                   'Follow',
                   style: TextStyle(
-                    color: config.accentColor,
+                    color: config.followButtonColor,
                     fontSize: 12,
                   ),
                 ),

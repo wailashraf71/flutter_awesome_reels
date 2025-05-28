@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
 import '../data/sample_data.dart';
 import 'demo_reels_screen.dart';
 
@@ -57,9 +58,12 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
             
             _buildSectionHeader('Performance Settings'),
             _buildPerformanceSection(),            const SizedBox(height: 20),
-            
-            _buildSectionHeader('UI Customization'),
+              _buildSectionHeader('UI Customization'),
             _buildUISection(),
+            const SizedBox(height: 30),
+            
+            _buildSectionHeader('Live Preview'),
+            _buildLivePreviewSection(),
             const SizedBox(height: 30),
             
             _buildApplyButton(),
@@ -237,6 +241,84 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
           ],
         ),
       ),
+    );  }
+
+  Widget _buildLivePreviewSection() {
+    return Card(
+      color: Colors.white.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Text(
+              'See your settings in action with this mini preview:',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              height: 300,
+              width: 180,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white30),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildMiniReelsPlayer(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tap "Apply Settings" to see changes reflected here',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget _buildMiniReelsPlayer() {
+    // Create a mini reel configuration based on current settings
+    final config = ReelConfig(
+      showProgressIndicator: _showProgressBar.value,
+      enableCaching: _enableCaching.value,
+      accentColor: Colors.blue,
+      textColor: Colors.white,
+      showFollowButton: true,
+      showBookmarkButton: true,
+      showDownloadButton: false, // Disabled for mini preview
+      showMoreButton: true,
+      bookmarkInMoreMenu: true,
+      downloadInMoreMenu: true,
+      followButtonColor: Colors.white,
+      followingButtonColor: Colors.white70,
+      preloadConfig: PreloadConfig(
+        preloadAhead: _preloadRange.value,
+        preloadBehind: 1,
+      ),
+      videoPlayerConfig: VideoPlayerConfig(
+        startMuted: _enableMute.value,
+        defaultVolume: _volume.value,
+      ),
+    );
+
+    // Use only the first reel for mini preview
+    final miniReels = SampleData.basicReels.take(1).toList();
+
+    return AwesomeReels(
+      reels: miniReels,
+      config: config,
+      onReelChanged: (index) {},
+      onReelLiked: (reel) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Liked in preview!'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      },
     );
   }
 

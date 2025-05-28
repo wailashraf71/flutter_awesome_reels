@@ -152,61 +152,9 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
   void _showCommentDialog(ReelModel reel) {
     final TextEditingController commentController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(
-          'Add Comment',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Commenting on ${reel.user?.displayName}\'s reel',
-              style: TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: commentController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Write a comment...',
-                hintStyle: TextStyle(color: Colors.white54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.white54),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.blue),
-                ),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (commentController.text.isNotEmpty) {
-                _showSnackBar('Comment added: "${commentController.text}"');
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Post'),
-          ),
-        ],
-      ),
-    );
+    print('Commenting on reel: ${reel.id}');
+    print('Reel user: ${reel.user?.displayName}');
+
   }
 
   void _showSnackBar(String message) {

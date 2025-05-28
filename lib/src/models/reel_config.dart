@@ -92,6 +92,14 @@ class ReelConfig {
   final bool showMoreButton;
   final bool showBottomControls;
   
+  /// Button organization - move to more menu
+  final bool bookmarkInMoreMenu;
+  final bool downloadInMoreMenu;
+  
+  /// Follow button styling
+  final Color followButtonColor;
+  final Color followingButtonColor;
+  
   /// Caption configuration
   final int maxCaptionLines;
   
@@ -127,12 +135,15 @@ class ReelConfig {
     this.keepScreenAwake = true,
     this.videoPlayerConfig = const VideoPlayerConfig(),
     this.accentColor = Colors.red,
-    this.textColor = Colors.white,
-    this.showFollowButton = true,
+    this.textColor = Colors.white,    this.showFollowButton = true,
     this.showBookmarkButton = true,
     this.showDownloadButton = true,
     this.showMoreButton = true,
     this.showBottomControls = false,
+    this.bookmarkInMoreMenu = true,
+    this.downloadInMoreMenu = true,
+    this.followButtonColor = Colors.white,
+    this.followingButtonColor = Colors.white70,
     this.maxCaptionLines = 3,
     this.customActions = const [],
     this.onCommentTap,
@@ -167,9 +178,12 @@ class ReelConfig {
     Color? textColor,
     bool? showFollowButton,
     bool? showBookmarkButton,
-    bool? showDownloadButton,
-    bool? showMoreButton,
+    bool? showDownloadButton,    bool? showMoreButton,
     bool? showBottomControls,
+    bool? bookmarkInMoreMenu,
+    bool? downloadInMoreMenu,
+    Color? followButtonColor,
+    Color? followingButtonColor,
     int? maxCaptionLines,
     List<CustomAction>? customActions,
     void Function(ReelModel)? onCommentTap,
@@ -202,11 +216,14 @@ class ReelConfig {
       videoPlayerConfig: videoPlayerConfig ?? this.videoPlayerConfig,
       accentColor: accentColor ?? this.accentColor,
       textColor: textColor ?? this.textColor,
-      showFollowButton: showFollowButton ?? this.showFollowButton,
-      showBookmarkButton: showBookmarkButton ?? this.showBookmarkButton,
+      showFollowButton: showFollowButton ?? this.showFollowButton,      showBookmarkButton: showBookmarkButton ?? this.showBookmarkButton,
       showDownloadButton: showDownloadButton ?? this.showDownloadButton,
       showMoreButton: showMoreButton ?? this.showMoreButton,
       showBottomControls: showBottomControls ?? this.showBottomControls,
+      bookmarkInMoreMenu: bookmarkInMoreMenu ?? this.bookmarkInMoreMenu,
+      downloadInMoreMenu: downloadInMoreMenu ?? this.downloadInMoreMenu,
+      followButtonColor: followButtonColor ?? this.followButtonColor,
+      followingButtonColor: followingButtonColor ?? this.followingButtonColor,
       maxCaptionLines: maxCaptionLines ?? this.maxCaptionLines,
       customActions: customActions ?? this.customActions,
       onCommentTap: onCommentTap ?? this.onCommentTap,

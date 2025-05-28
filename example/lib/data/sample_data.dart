@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
 
 class SampleData {
@@ -41,33 +40,5 @@ class SampleData {
       isLiked: true,
       views: 2500,
       location: 'Mountains',
-    ),
-  ];
-
-  static final List<ReelModel> premiumReels = [
-    ...basicReels,
-    ReelModel(
-      id: '3',
-      videoUrl:
-          'https://videos.pexels.com/video-files/8030193/8030193-hd_1080_1920_24fps.mp4',
-      user: const ReelUser(
-        id: 'u3',
-        username: 'charlie',
-        displayName: 'Charlie Chaplin',
-      ),
-      likesCount: 350,
-      commentsCount: 50,
-      sharesCount: 20,
-      tags: ['premium', 'exclusive'],
-      audio: const ReelAudio(title: 'Premium Beat'),
-      duration: 15000,
-      isLiked: false,
-      views: 5000,
-      location: 'City Lights',
-    ),
-  ];
-
-  static final ReelConfig premiumConfig = ReelConfig(
-    accentColor: const Color(0xFFFF006E),
-  );
+    ),  ];
 }

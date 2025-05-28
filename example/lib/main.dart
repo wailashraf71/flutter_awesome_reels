@@ -87,8 +87,8 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),                _buildFeatureCard(
+                ),                const SizedBox(height: 20),
+                _buildFeatureCard(
                   context,
                   'Settings Playground',
                   'Test and configure reel features',
@@ -97,23 +97,6 @@ class HomeScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const PlaygroundScreen(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildFeatureCard(
-                  context,
-                  'Premium Features',
-                  'See all features in action',
-                  Icons.star,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DemoReelsScreen(
-                        reels: SampleData.premiumReels,
-                        title: 'Premium Features',
-                        config: SampleData.premiumConfig,
-                      ),
                     ),
                   ),
                 ),

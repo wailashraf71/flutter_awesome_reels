@@ -534,15 +534,46 @@ class ReelController extends GetxController {
   /// Clear error state
   void clearError() {
     _error.value = null;
-  }
-
-  /// Retry failed operation
+  }  /// Retry failed operation with intelligent re-caching
   Future<void> retry() async {
     _error.value = null;
     final currentReel = _currentReel.value;
     if (currentReel != null) {
-      await _initializeVideo(currentReel);
+      // Clear failed cached files
+      if (config.enableCaching) {
+        await CacheManager.instance.removeCachedUrl(currentReel.videoUrl);
+      }
+      
+      // Dispose existing controller if any
+      final existingController = _videoControllers[currentReel.id];
+      if (existingController != null) {
+        await existingController.dispose();
+        _videoControllers.remove(currentReel.id);
+      }
+      
+      // Re-initialize with fresh attempt
+      await _initializeVideoWithRetry(currentReel, maxRetries: 3);
       await _startPlayback(currentReel);
+    }
+  }
+
+  /// Initialize video with retry logic
+  Future<VideoPlayerController?> _initializeVideoWithRetry(
+    ReelModel reel, {
+    int maxRetries = 2,
+    int currentRetry = 0,
+  }) async {
+    try {
+      return await _initializeVideo(reel);
+    } catch (e) {
+      if (currentRetry < maxRetries) {
+        debugPrint('Video init failed (attempt ${currentRetry + 1}/$maxRetries): $e');
+        await Future.delayed(Duration(milliseconds: 500 * (currentRetry + 1)));
+        return await _initializeVideoWithRetry(reel, maxRetries: maxRetries, currentRetry: currentRetry + 1);
+      } else {
+        _error.value = 'Failed to load video after $maxRetries attempts';
+        return null;
+      }
     }
   }
 
