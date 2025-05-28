@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import '../models/reel_analytics.dart';
 
 /// Service for collecting and reporting analytics data
@@ -347,7 +346,6 @@ class AnalyticsService {
   Future<void> _collectDeviceInfo() async {
     try {
       final deviceInfoPlugin = DeviceInfoPlugin();
-      final packageInfo = await PackageInfo.fromPlatform();
 
       String platform;
       String? deviceModel;
@@ -373,7 +371,6 @@ class AnalyticsService {
         platform: platform,
         deviceModel: deviceModel,
         osVersion: osVersion,
-        appVersion: '${packageInfo.version}+${packageInfo.buildNumber}',
         screenResolution: null, // Can be set from MediaQuery if needed
         networkType: null, // Can be detected using connectivity_plus
         batteryLevel: null, // Can be detected using battery_plus
