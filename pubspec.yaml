@@ -1,25 +1,51 @@
 name: flutter_awesome_reels
-description: A fully customizable Flutter widget for TikTok/Instagram-style vertical video reels.
-version: 0.0.1
+description: A powerful, customizable Flutter widget for creating TikTok/Instagram-style vertical video reels with advanced features like caching, analytics, and rich interactions.
+version: 1.0.0
 homepage: https://github.com/wailashraf71/flutter_awesome_reels
 repository: https://github.com/wailashraf71/flutter_awesome_reels
 issue_tracker: https://github.com/wailashraf71/flutter_awesome_reels/issues
-
+documentation: https://github.com/wailashraf71/flutter_awesome_reels/wiki
 
 environment:
-  sdk: ^3.8.0
-  flutter: ">=1.17.0"
+  sdk: ^3.0.0
+  flutter: ">=3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  video_player: ^2.7.0
-  chewie: ^1.6.0
+  
+  # Video playback
+  video_player: ^2.9.5
+  chewie: ^1.11.3
+  
+  # Visibility and lifecycle
   visibility_detector: ^0.4.0
+  
+  # Caching
+  dio: ^5.3.0
+  path_provider: ^2.1.0
+  
+  # State management and performance
+  provider: ^6.1.5
+  
+  # UI enhancements
+  shimmer: ^3.0.0
+  lottie: ^2.6.0
+  
+  # Utilities
+  share_plus: ^11.0.0
+  url_launcher: ^6.3.1
+  package_info_plus: ^8.3.0
+  device_info_plus: ^11.4.0
+  
+  # Platform specific
+  wakelock_plus: ^1.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.0
+  mockito: ^5.4.0
+  build_runner: ^2.4.0
 
 flutter:

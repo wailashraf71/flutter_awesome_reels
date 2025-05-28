@@ -21,4 +21,24 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_awesome_reels: ^0.0.1
+  flutter_awesome_reels: ^1.0.0
+
+```
+
+## 🚀 Usage
+
+Import the package:
+
+```dart
+import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
+```
+
+Use the widget:
+
+```dart
+AwesomeReels(
+  reels: [
+    // Your ReelModel items here
+  ],
+)
+```

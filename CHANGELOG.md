@@ -1,3 +1,3 @@
-## 0.0.1
+## 1.0.0
 
-* TODO: Describe initial release.
+* Initial release: TikTok/Instagram-style vertical video reels widget with caching, analytics, and rich interactions.

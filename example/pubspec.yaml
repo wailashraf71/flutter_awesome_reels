@@ -1,0 +1,15 @@
+name: flutter_awesome_reels_example
+description: Example app for flutter_awesome_reels
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_awesome_reels:
+    path: ../
+
+flutter:
+  uses-material-design: true
