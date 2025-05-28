@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
@@ -15,68 +15,69 @@ class ReelProgressIndicator extends StatefulWidget {
   final double height;
 
   const ReelProgressIndicator({
-    Key? key,
+    super.key,
     required this.reel,
     required this.config,
     this.showThumb = false,
     this.showTime = false,
     this.height = 3.0,
-  }) : super(key: key);
+  });
 
   @override
   State<ReelProgressIndicator> createState() => _ReelProgressIndicatorState();
 }
 
 class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
-  bool _isDragging = false;
-  double? _dragValue;
+  final RxBool _isDragging = false.obs;
+  final RxnDouble _dragValue = RxnDouble();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        final videoController = controller.currentVideoController;
-        
-        if (videoController == null) {
-          return _buildLoadingProgress();
-        }
-
-        return StreamBuilder<Duration>(
-          stream: controller.positionStream,
-          builder: (context, snapshot) {
-            final position = snapshot.data ?? Duration.zero;
-            final duration = videoController.value.duration;
-            
-            if (duration.inMilliseconds <= 0) {
-              return _buildLoadingProgress();
-            }
-
-            final progress = _isDragging 
-                ? (_dragValue ?? 0.0)
-                : position.inMilliseconds / duration.inMilliseconds;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Progress bar
-                _buildProgressBar(
-                  controller,
-                  progress,
-                  duration,
-                  position,
-                ),
-                
-                // Time indicators
-                if (widget.showTime) ...[
-                  const SizedBox(height: 4),
-                  _buildTimeIndicators(position, duration),
-                ],
+    final controller = Get.find<ReelController>();
+    return Obx(() {
+      final videoController = controller.currentVideoController;
+      if (videoController == null || !videoController.value.isInitialized) {
+        return const SizedBox.shrink(); // Don't show progress bar if not initialized
+      }
+      
+      return ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: videoController,
+        builder: (context, value, child) {
+          if (!value.isInitialized) {
+            return const SizedBox.shrink();
+          }
+          
+          final position = value.position;
+          final duration = value.duration;
+          
+          if (duration.inMilliseconds <= 0) {
+            return const SizedBox.shrink();
+          }
+          
+          final progress = _isDragging.value
+              ? (_dragValue.value ?? 0.0)
+              : position.inMilliseconds / duration.inMilliseconds;
+              
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Progress bar
+              _buildProgressBar(
+                controller,
+                progress,
+                duration,
+                position,
+              ),
+              // Time indicators
+              if (widget.showTime) ...[
+                const SizedBox(height: 4),
+                _buildTimeIndicators(position, duration),
               ],
-            );
-          },
-        );
-      },
-    );
+            ],
+          );
+        },
+      );
+    });
   }
 
   Widget _buildProgressBar(
@@ -97,7 +98,7 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
       height: widget.height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(widget.height / 2),
-        color: Colors.white.withOpacity(0.3),
+        color: Colors.white.withAlpha(128),
       ),
       child: LinearProgressIndicator(
         value: progress.clamp(0.0, 1.0),
@@ -115,53 +116,45 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
     Duration duration,
     Duration position,
   ) {
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: widget.height,
-        thumbShape: RoundSliderThumbShape(
-          enabledThumbRadius: _isDragging ? 8.0 : 6.0,
-        ),
-        overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
-        activeTrackColor: widget.config.accentColor,
-        inactiveTrackColor: Colors.white.withOpacity(0.3),
-        thumbColor: widget.config.accentColor,
-        overlayColor: widget.config.accentColor.withOpacity(0.2),
-      ),
-      child: Slider(
-        value: progress.clamp(0.0, 1.0),
-        onChanged: (value) {
-          setState(() {
-            _isDragging = true;
-            _dragValue = value;
-          });
-        },
-        onChangeStart: (value) {
-          setState(() {
-            _isDragging = true;
-            _dragValue = value;
-          });
-          controller.pause();
-        },
-        onChangeEnd: (value) {
-          final newPosition = Duration(
-            milliseconds: (value * duration.inMilliseconds).round(),
-          );
-          controller.seekTo(newPosition);
-          
-          setState(() {
-            _isDragging = false;
-            _dragValue = null;
-          });
-          
-          // Resume playback after seeking
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (controller.wasPlayingBeforeSeek) {
-              controller.play();
-            }
-          });
-        },
-      ),
-    );
+    return Obx(() => SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: widget.height,
+            thumbShape: RoundSliderThumbShape(
+              enabledThumbRadius: _isDragging.value ? 8.0 : 6.0,
+            ),
+            overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
+            activeTrackColor: widget.config.accentColor,
+            inactiveTrackColor: Colors.white.withAlpha(128),
+            thumbColor: widget.config.accentColor,
+            overlayColor: widget.config.accentColor.withAlpha(64),
+          ),
+          child: Slider(
+            value: progress.clamp(0.0, 1.0),
+            onChanged: (value) {
+              _isDragging.value = true;
+              _dragValue.value = value;
+            },
+            onChangeStart: (value) {
+              _isDragging.value = true;
+              _dragValue.value = value;
+              controller.pause();
+            },
+            onChangeEnd: (value) {
+              final newPosition = Duration(
+                milliseconds: (value * duration.inMilliseconds).round(),
+              );
+              controller.seekTo(newPosition);
+              _isDragging.value = false;
+              _dragValue.value = null;
+              // Resume playback after seeking
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (controller.wasPlayingBeforeSeek) {
+                  controller.play();
+                }
+              });
+            },
+          ),
+        ));
   }
 
   Widget _buildTimeIndicators(Duration position, Duration duration) {
@@ -171,7 +164,7 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
         Text(
           ReelUtils.formatDuration(position),
           style: TextStyle(
-            color: widget.config.textColor.withOpacity(0.8),
+            color: widget.config.textColor.withAlpha(128),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -179,30 +172,13 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
         Text(
           ReelUtils.formatDuration(duration),
           style: TextStyle(
-            color: widget.config.textColor.withOpacity(0.8),
+            color: widget.config.textColor.withAlpha(128),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildLoadingProgress() {
-    return Container(
-      height: widget.height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(widget.height / 2),
-        color: Colors.white.withOpacity(0.3),
-      ),
-      child: LinearProgressIndicator(
-        backgroundColor: Colors.transparent,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          widget.config.accentColor.withOpacity(0.5),
-        ),
-      ),
-    );
-  }
+    );  }
 }
 
 /// Advanced progress indicator with buffering and chapters
@@ -213,87 +189,76 @@ class AdvancedReelProgressIndicator extends StatefulWidget {
   final bool showBuffering;
 
   const AdvancedReelProgressIndicator({
-    Key? key,
+    super.key,
     required this.reel,
     required this.config,
     this.chapters,
     this.showBuffering = true,
-  }) : super(key: key);
+  });
 
   @override
-  State<AdvancedReelProgressIndicator> createState() => 
+  State<AdvancedReelProgressIndicator> createState() =>
       _AdvancedReelProgressIndicatorState();
 }
 
-class _AdvancedReelProgressIndicatorState 
+class _AdvancedReelProgressIndicatorState
     extends State<AdvancedReelProgressIndicator> {
-  bool _isDragging = false;
-  double? _dragValue;
+  final RxBool _isDragging = false.obs;
+  final RxnDouble _dragValue = RxnDouble();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        final videoController = controller.currentVideoController;
-        
-        if (videoController == null) {
-          return _buildLoadingProgress();
-        }
-
-        return StreamBuilder<Duration>(
-          stream: controller.positionStream,
-          builder: (context, snapshot) {
-            final position = snapshot.data ?? Duration.zero;
-            final duration = videoController.value.duration;
-            final buffered = videoController.value.buffered;
-            
-            if (duration.inMilliseconds <= 0) {
-              return _buildLoadingProgress();
-            }
-
-            final progress = _isDragging 
-                ? (_dragValue ?? 0.0)
-                : position.inMilliseconds / duration.inMilliseconds;
-
-            return Container(
-              height: 20,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Background track
-                  Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(1.5),
-                      color: Colors.white.withOpacity(0.3),
-                    ),
+    final controller = Get.find<ReelController>();
+    return Obx(() {
+      final videoController = controller.currentVideoController;
+      if (videoController == null) {
+        return _buildLoadingProgress();
+      }
+      return StreamBuilder<Duration>(
+        stream: controller.positionStream,
+        builder: (context, snapshot) {
+          final position = snapshot.data ?? Duration.zero;
+          final duration = videoController.value.duration;
+          final buffered = videoController.value.buffered;
+          if (duration.inMilliseconds <= 0) {
+            return _buildLoadingProgress();
+          }
+          final progress = _isDragging.value
+              ? (_dragValue.value ?? 0.0)
+              : position.inMilliseconds / duration.inMilliseconds;
+          return Container(
+            height: 20,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background track
+                Container(
+                  height: 3,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(1.5),
+                    color: Colors.white.withAlpha(128),
                   ),
-
-                  // Buffered progress
-                  if (widget.showBuffering)
-                    _buildBufferedProgress(buffered, duration),
-
-                  // Chapter markers
-                  if (widget.chapters != null)
-                    _buildChapterMarkers(duration),
-
-                  // Progress track
-                  _buildProgressTrack(progress),
-
-                  // Interactive slider
-                  _buildInteractiveSlider(
-                    controller,
-                    progress,
-                    duration,
-                    position,
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+                ),
+                // Buffered progress
+                if (widget.showBuffering)
+                  _buildBufferedProgress(buffered, duration),
+                // Chapter markers
+                if (widget.chapters != null) _buildChapterMarkers(duration),
+                // Progress track
+                _buildProgressTrack(progress),
+                // Interactive slider
+                _buildInteractiveSlider(
+                  controller,
+                  progress,
+                  duration,
+                  position,
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 
   Widget _buildBufferedProgress(
@@ -303,13 +268,15 @@ class _AdvancedReelProgressIndicatorState
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        
+
         return Stack(
           children: buffered.map((range) {
-            final startPercent = range.start.inMilliseconds / duration.inMilliseconds;
-            final endPercent = range.end.inMilliseconds / duration.inMilliseconds;
+            final startPercent =
+                range.start.inMilliseconds / duration.inMilliseconds;
+            final endPercent =
+                range.end.inMilliseconds / duration.inMilliseconds;
             final rangeWidth = (endPercent - startPercent) * width;
-            
+
             return Positioned(
               left: startPercent * width,
               child: Container(
@@ -317,7 +284,7 @@ class _AdvancedReelProgressIndicatorState
                 height: 3,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(1.5),
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withAlpha(128),
                 ),
               ),
             );
@@ -331,11 +298,11 @@ class _AdvancedReelProgressIndicatorState
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        
+
         return Stack(
           children: widget.chapters!.map((chapter) {
             final percent = chapter.inMilliseconds / duration.inMilliseconds;
-            
+
             return Positioned(
               left: percent * width - 1,
               child: Container(
@@ -375,53 +342,45 @@ class _AdvancedReelProgressIndicatorState
     Duration duration,
     Duration position,
   ) {
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: 0,
-        thumbShape: RoundSliderThumbShape(
-          enabledThumbRadius: _isDragging ? 8.0 : 6.0,
-        ),
-        overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
-        activeTrackColor: Colors.transparent,
-        inactiveTrackColor: Colors.transparent,
-        thumbColor: widget.config.accentColor,
-        overlayColor: widget.config.accentColor.withOpacity(0.2),
-      ),
-      child: Slider(
-        value: progress.clamp(0.0, 1.0),
-        onChanged: (value) {
-          setState(() {
-            _isDragging = true;
-            _dragValue = value;
-          });
-        },
-        onChangeStart: (value) {
-          setState(() {
-            _isDragging = true;
-            _dragValue = value;
-          });
-          controller.pause();
-        },
-        onChangeEnd: (value) {
-          final newPosition = Duration(
-            milliseconds: (value * duration.inMilliseconds).round(),
-          );
-          controller.seekTo(newPosition);
-          
-          setState(() {
-            _isDragging = false;
-            _dragValue = null;
-          });
-          
-          // Resume playback after seeking
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (controller.wasPlayingBeforeSeek) {
-              controller.play();
-            }
-          });
-        },
-      ),
-    );
+    return Obx(() => SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 0,
+            thumbShape: RoundSliderThumbShape(
+              enabledThumbRadius: _isDragging.value ? 8.0 : 6.0,
+            ),
+            overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
+            activeTrackColor: Colors.transparent,
+            inactiveTrackColor: Colors.transparent,
+            thumbColor: widget.config.accentColor,
+            overlayColor: widget.config.accentColor.withAlpha(64),
+          ),
+          child: Slider(
+            value: progress.clamp(0.0, 1.0),
+            onChanged: (value) {
+              _isDragging.value = true;
+              _dragValue.value = value;
+            },
+            onChangeStart: (value) {
+              _isDragging.value = true;
+              _dragValue.value = value;
+              controller.pause();
+            },
+            onChangeEnd: (value) {
+              final newPosition = Duration(
+                milliseconds: (value * duration.inMilliseconds).round(),
+              );
+              controller.seekTo(newPosition);
+              _isDragging.value = false;
+              _dragValue.value = null;
+              // Resume playback after seeking
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (controller.wasPlayingBeforeSeek) {
+                  controller.play();
+                }
+              });
+            },
+          ),
+        ));
   }
 
   Widget _buildLoadingProgress() {
@@ -429,12 +388,12 @@ class _AdvancedReelProgressIndicatorState
       height: 3,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(1.5),
-        color: Colors.white.withOpacity(0.3),
+        color: Colors.white.withAlpha(128),
       ),
       child: LinearProgressIndicator(
         backgroundColor: Colors.transparent,
         valueColor: AlwaysStoppedAnimation<Color>(
-          widget.config.accentColor.withOpacity(0.5),
+          widget.config.accentColor.withAlpha(64),
         ),
       ),
     );
@@ -449,80 +408,72 @@ class CircularReelProgressIndicator extends StatelessWidget {
   final double strokeWidth;
 
   const CircularReelProgressIndicator({
-    Key? key,
+    super.key,
     required this.reel,
     required this.config,
     this.size = 60.0,
     this.strokeWidth = 3.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        final videoController = controller.currentVideoController;
-        
-        if (videoController == null) {
-          return _buildLoadingIndicator();
-        }
-
-        return StreamBuilder<Duration>(
-          stream: controller.positionStream,
-          builder: (context, snapshot) {
-            final position = snapshot.data ?? Duration.zero;
-            final duration = videoController.value.duration;
-            
-            if (duration.inMilliseconds <= 0) {
-              return _buildLoadingIndicator();
-            }
-
-            final progress = position.inMilliseconds / duration.inMilliseconds;
-
-            return SizedBox(
-              width: size,
-              height: size,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Background circle
-                  CircularProgressIndicator(
-                    value: 1.0,
-                    strokeWidth: strokeWidth,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withOpacity(0.3),
-                    ),
+    final controller = Get.find<ReelController>();
+    return Obx(() {
+      final videoController = controller.currentVideoController;
+      if (videoController == null) {
+        return _buildLoadingIndicator();
+      }
+      return StreamBuilder<Duration>(
+        stream: controller.positionStream,
+        builder: (context, snapshot) {
+          final position = snapshot.data ?? Duration.zero;
+          final duration = videoController.value.duration;
+          if (duration.inMilliseconds <= 0) {
+            return _buildLoadingIndicator();
+          }
+          final progress = position.inMilliseconds / duration.inMilliseconds;
+          return SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background circle
+                CircularProgressIndicator(
+                  value: 1.0,
+                  strokeWidth: strokeWidth,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.white.withAlpha(128),
                   ),
-                  
-                  // Progress circle
-                  CircularProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    strokeWidth: strokeWidth,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      config.accentColor,
-                    ),
+                ),
+                // Progress circle
+                CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: strokeWidth,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    config.accentColor,
                   ),
-                  
-                  // Center content
-                  Container(
-                    width: size - (strokeWidth * 4),
-                    height: size - (strokeWidth * 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black54,
-                    ),
-                    child: Icon(
-                      controller.isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: config.textColor,
-                      size: size * 0.4,
-                    ),
+                ),
+                // Center content
+                Container(
+                  width: size - (strokeWidth * 4),
+                  height: size - (strokeWidth * 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black54,
                   ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+                  child: Icon(
+                    controller.isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: config.textColor,
+                    size: size * 0.4,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 
   Widget _buildLoadingIndicator() {
@@ -532,7 +483,7 @@ class CircularReelProgressIndicator extends StatelessWidget {
       child: CircularProgressIndicator(
         strokeWidth: strokeWidth,
         valueColor: AlwaysStoppedAnimation<Color>(
-          config.accentColor.withOpacity(0.5),
+          config.accentColor.withAlpha(64),
         ),
       ),
     );

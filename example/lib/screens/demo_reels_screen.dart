@@ -47,14 +47,16 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
       body: AwesomeReels(
         reels: widget.reels,
         controller: _controller,
-        config: widget.config ?? ReelConfig(),
+        config:
+            widget.config?.copyWith(showDownloadButton: false) ?? ReelConfig(),
         onReelChanged: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
         onReelLiked: (reel) {
-          _showSnackBar('${reel.isLiked ? 'Liked' : 'Unliked'} ${reel.user?.displayName}\'s reel');
+          _showSnackBar(
+              '${reel.isLiked ? 'Liked' : 'Unliked'} ${reel.user?.displayName}\'s reel');
         },
         onReelShared: (reel) {
           _showSnackBar('Shared ${reel.user?.displayName}\'s reel');
@@ -63,7 +65,8 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
           _showCommentDialog(reel);
         },
         onUserFollowed: (user) {
-          _showSnackBar('${user.isFollowing ? 'Following' : 'Unfollowed'} ${user.displayName}');
+          _showSnackBar(
+              '${user.isFollowing ? 'Following' : 'Unfollowed'} ${user.displayName}');
         },
         onUserBlocked: (user) {
           _showSnackBar('Blocked ${user.displayName}');
@@ -80,7 +83,7 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
 
   void _showInfoDialog() {
     final currentReel = widget.reels[_currentIndex];
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -93,7 +96,8 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('Creator', currentReel.user?.displayName ?? 'Unknown'),
+            _buildInfoRow(
+                'Creator', currentReel.user?.displayName ?? 'Unknown'),
             _buildInfoRow('Username', '@${currentReel.user?.username}'),
             _buildInfoRow('Likes', '${currentReel.likesCount}'),
             _buildInfoRow('Comments', '${currentReel.commentsCount}'),
@@ -147,7 +151,7 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
 
   void _showCommentDialog(ReelModel reel) {
     final TextEditingController commentController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

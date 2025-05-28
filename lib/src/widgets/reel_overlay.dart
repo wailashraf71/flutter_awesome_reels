@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
+import 'package:get/get.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
@@ -20,7 +21,7 @@ class ReelOverlay extends StatelessWidget {
   final VoidCallback? onCompleted;
 
   const ReelOverlay({
-    Key? key,
+    super.key,
     required this.reel,
     required this.config,
     this.onTap,
@@ -30,13 +31,12 @@ class ReelOverlay extends StatelessWidget {
     this.onFollow,
     this.onBlock,
     this.onCompleted,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        return GestureDetector(
+    final controller = Get.find<ReelController>();
+    return Obx(() => GestureDetector(
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
@@ -46,26 +46,14 @@ class ReelOverlay extends StatelessWidget {
                 colors: [
                   Colors.transparent,
                   Colors.transparent,
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.4),
+                  Colors.black.withAlpha(100),
+                  Colors.black.withAlpha(150),
                 ],
                 stops: const [0.0, 0.4, 0.7, 1.0],
               ),
             ),
             child: Stack(
               children: [
-                // Progress indicator at top
-                if (config.showProgressIndicator)
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 8,
-                    left: 16,
-                    right: 16,
-                    child: ReelProgressIndicator(
-                      reel: reel,
-                      config: config,
-                    ),
-                  ),
-
                 // Main content area
                 Positioned(
                   bottom: 80,
@@ -101,11 +89,7 @@ class ReelOverlay extends StatelessWidget {
                 // Loading indicator
                 if (controller.isLoading)
                   Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        config.accentColor,
-                      ),
-                    ),
+                    child: Lottie.asset('assets/reel-loading.json'),
                   ),
 
                 // Error overlay
@@ -141,12 +125,21 @@ class ReelOverlay extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                // Progress indicator at bottom (always visible, no padding)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: ReelProgressIndicator(
+                    reel: reel,
+                    config: config,
+                  ),
+                ),
               ],
             ),
           ),
-        );
-      },
-    );
+        ));
   }
 
   Widget _buildUserInfo(BuildContext context, ReelController controller) {
@@ -191,7 +184,7 @@ class ReelOverlay extends StatelessWidget {
                     Text(
                       reel.user!.displayName!,
                       style: TextStyle(
-                        color: config.textColor.withOpacity(0.8),
+                        color: config.textColor.withAlpha(192),
                         fontSize: 12,
                       ),
                     ),
@@ -265,7 +258,7 @@ class ReelOverlay extends StatelessWidget {
             children: [
               Icon(
                 Icons.music_note,
-                color: config.textColor.withOpacity(0.8),
+                color: config.textColor.withAlpha(192),
                 size: 14,
               ),
               const SizedBox(width: 4),
@@ -273,7 +266,7 @@ class ReelOverlay extends StatelessWidget {
                 child: Text(
                   reel.musicTitle!,
                   style: TextStyle(
-                    color: config.textColor.withOpacity(0.8),
+                    color: config.textColor.withAlpha(192),
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
                   ),
@@ -325,7 +318,7 @@ class ReelOverlay extends StatelessWidget {
           Text(
             ReelUtils.formatDurationFromMilliseconds(reel.duration),
             style: TextStyle(
-              color: config.textColor.withOpacity(0.8),
+              color: config.textColor.withAlpha(192),
               fontSize: 12,
             ),
           ),

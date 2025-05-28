@@ -7,17 +7,18 @@ import 'package:flutter/material.dart';
 /// Utility functions for the awesome reels package
 class ReelUtils {
   ReelUtils._();
+
   /// Format duration to string (e.g., "1:23", "12:34")
   static String formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
-    
+
     if (duration.inHours > 0) {
       final hours = twoDigits(duration.inHours);
       return "$hours:$minutes:$seconds";
     }
-    
+
     return "$minutes:$seconds";
   }
 
@@ -32,14 +33,20 @@ class ReelUtils {
     if (count < 1000) return count.toString();
     if (count < 1000000) {
       double value = count / 1000;
-      return value % 1 == 0 ? '${value.toInt()}K' : '${value.toStringAsFixed(1)}K';
+      return value % 1 == 0
+          ? '${value.toInt()}K'
+          : '${value.toStringAsFixed(1)}K';
     }
     if (count < 1000000000) {
       double value = count / 1000000;
-      return value % 1 == 0 ? '${value.toInt()}M' : '${value.toStringAsFixed(1)}M';
+      return value % 1 == 0
+          ? '${value.toInt()}M'
+          : '${value.toStringAsFixed(1)}M';
     }
     double value = count / 1000000000;
-    return value % 1 == 0 ? '${value.toInt()}B' : '${value.toStringAsFixed(1)}B';
+    return value % 1 == 0
+        ? '${value.toInt()}B'
+        : '${value.toStringAsFixed(1)}B';
   }
 
   /// Format file size (e.g., 1024 -> "1 KB", 1048576 -> "1 MB")
@@ -74,9 +81,17 @@ class ReelUtils {
   /// Check if URL is a video file based on extension
   static bool isVideoUrl(String url) {
     final videoExtensions = [
-      '.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv', '.wmv', '.m4v', '.3gp'
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.webm',
+      '.flv',
+      '.wmv',
+      '.m4v',
+      '.3gp'
     ];
-    
+
     final lowercaseUrl = url.toLowerCase();
     return videoExtensions.any((ext) => lowercaseUrl.contains(ext));
   }
@@ -88,19 +103,19 @@ class ReelUtils {
       r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})',
       caseSensitive: false,
     );
-    
+
     final youtubeMatch = youtubeRegex.firstMatch(url);
     if (youtubeMatch != null) {
       return youtubeMatch.group(1);
     }
-    
+
     // Vimeo
     RegExp vimeoRegex = RegExp(r'vimeo\.com\/(\d+)', caseSensitive: false);
     final vimeoMatch = vimeoRegex.firstMatch(url);
     if (vimeoMatch != null) {
       return vimeoMatch.group(1);
     }
-    
+
     return null;
   }
 
@@ -108,17 +123,17 @@ class ReelUtils {
   static String? getThumbnailUrl(String videoUrl) {
     final videoId = extractVideoId(videoUrl);
     if (videoId == null) return null;
-    
+
     // YouTube thumbnail
     if (videoUrl.contains('youtube') || videoUrl.contains('youtu.be')) {
       return 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg';
     }
-    
+
     // Vimeo thumbnail (requires API call in real implementation)
     if (videoUrl.contains('vimeo')) {
       return 'https://vumbnail.com/$videoId.jpg';
     }
-    
+
     return null;
   }
 
@@ -129,17 +144,19 @@ class ReelUtils {
   }
 
   /// Get responsive font size based on screen size
-  static double getResponsiveFontSize(BuildContext context, double baseFontSize) {
+  static double getResponsiveFontSize(
+      BuildContext context, double baseFontSize) {
     final screenWidth = MediaQuery.of(context).size.width;
     final scaleFactor = screenWidth / 375; // Base width (iPhone 6/7/8)
     return baseFontSize * scaleFactor.clamp(0.8, 1.2);
   }
 
   /// Get responsive padding based on screen size
-  static EdgeInsets getResponsivePadding(BuildContext context, EdgeInsets basePadding) {
+  static EdgeInsets getResponsivePadding(
+      BuildContext context, EdgeInsets basePadding) {
     final screenWidth = MediaQuery.of(context).size.width;
     final scaleFactor = screenWidth / 375; // Base width
-    
+
     return EdgeInsets.only(
       left: basePadding.left * scaleFactor,
       top: basePadding.top * scaleFactor,
@@ -158,10 +175,10 @@ class ReelUtils {
   static double _calculateDiagonal(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    
+
     final widthInches = size.width * devicePixelRatio / 160;
     final heightInches = size.height * devicePixelRatio / 160;
-    
+
     return sqrt(widthInches * widthInches + heightInches * heightInches);
   }
 
@@ -175,15 +192,15 @@ class ReelUtils {
   static bool throttle(String key, Duration duration) {
     final now = DateTime.now();
     final lastCall = _throttleMap[key];
-    
+
     if (lastCall == null || now.difference(lastCall) >= duration) {
       _throttleMap[key] = now;
       return true;
     }
-    
+
     return false;
   }
-  
+
   static final Map<String, DateTime> _throttleMap = {};
 
   /// Convert hex color string to Color
@@ -196,7 +213,7 @@ class ReelUtils {
 
   /// Convert Color to hex string
   static String colorToHex(Color color) {
-    return '#${color.value.toRadixString(16).substring(2)}';
+    return '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
   }
 
   /// Calculate luminance of a color
@@ -210,19 +227,27 @@ class ReelUtils {
   }
 
   /// Generate gradient colors
-  static List<Color> generateGradient(Color startColor, Color endColor, int steps) {
+  static List<Color> generateGradient(
+      Color startColor, Color endColor, int steps) {
     final colors = <Color>[];
-    
+
     for (int i = 0; i < steps; i++) {
       final ratio = i / (steps - 1);
-      final red = (startColor.red + (endColor.red - startColor.red) * ratio).round();
-      final green = (startColor.green + (endColor.green - startColor.green) * ratio).round();
-      final blue = (startColor.blue + (endColor.blue - startColor.blue) * ratio).round();
-      final alpha = (startColor.alpha + (endColor.alpha - startColor.alpha) * ratio).round();
-      
+      final red = ((startColor.r * 255.0) +
+              ((endColor.r - startColor.r) * 255.0) * ratio)
+          .round();
+      final green = ((startColor.g * 255.0) +
+              ((endColor.g - startColor.g) * 255.0) * ratio)
+          .round();
+      final blue = ((startColor.b * 255.0) +
+              ((endColor.b - startColor.b) * 255.0) * ratio)
+          .round();
+      final alpha = ((startColor.a * 255.0) +
+              ((endColor.a - startColor.a) * 255.0) * ratio)
+          .round();
       colors.add(Color.fromARGB(alpha, red, green, blue));
     }
-    
+
     return colors;
   }
 
@@ -244,16 +269,17 @@ class ReelUtils {
   }
 
   /// Map value from one range to another
-  static double mapRange(double value, double inMin, double inMax, double outMin, double outMax) {
+  static double mapRange(
+      double value, double inMin, double inMax, double outMin, double outMax) {
     return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
   }
 
   /// Check if two rectangles intersect
   static bool rectsIntersect(Rect rect1, Rect rect2) {
     return rect1.left < rect2.right &&
-           rect1.right > rect2.left &&
-           rect1.top < rect2.bottom &&
-           rect1.bottom > rect2.top;
+        rect1.right > rect2.left &&
+        rect1.top < rect2.bottom &&
+        rect1.bottom > rect2.top;
   }
 
   /// Get distance between two points
@@ -323,6 +349,7 @@ class ReelUtils {
 
   /// Check if app is running in release mode
   static bool get isReleaseMode => kReleaseMode;
+
   /// Get current timestamp in milliseconds
   static int get timestamp => DateTime.now().millisecondsSinceEpoch;
 
@@ -335,7 +362,7 @@ class ReelUtils {
   static String getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
     } else if (difference.inHours > 0) {

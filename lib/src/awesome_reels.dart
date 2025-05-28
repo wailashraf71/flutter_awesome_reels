@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
+import 'package:get/get.dart';
 import 'models/reel_model.dart';
 import 'models/reel_config.dart';
 import 'controllers/reel_controller.dart';
@@ -103,7 +104,12 @@ class _AwesomeReelsState extends State<AwesomeReels>
   void initState() {
     super.initState();
     _isExternalController = widget.controller != null;
-    _controller = widget.controller ?? ReelController();
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+      Get.put(_controller, permanent: true);
+    } else {
+      _controller = Get.put(ReelController(), permanent: true);
+    }
     _initializeController();
   }
 
@@ -153,19 +159,16 @@ class _AwesomeReelsState extends State<AwesomeReels>
       return _buildLoadingWidget();
     }
 
-    return ChangeNotifierProvider<ReelController>.value(
-      value: _controller,
-      child: Container(
-        color: widget.config.backgroundColor,
-        child: widget.config.enablePullToRefresh
-            ? RefreshIndicator(
-                onRefresh: () async {
-                  await _controller.refresh();
-                },
-                child: _buildPageView(),
-              )
-            : _buildPageView(),
-      ),
+    return Container(
+      color: widget.config.backgroundColor,
+      child: widget.config.enablePullToRefresh
+          ? RefreshIndicator(
+              onRefresh: () async {
+                await _controller.refresh();
+              },
+              child: _buildPageView(),
+            )
+          : _buildPageView(),
     );
   }
 
@@ -190,51 +193,46 @@ class _AwesomeReelsState extends State<AwesomeReels>
   }
 
   Widget _buildReelItem(ReelModel reel, int index) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ReelVideoPlayer(
-              reel: reel,
-              controller: controller,
-              config: widget.config,
-              onTap: (position) {
-                if (widget.onVideoTapped != null) {
-                  widget.onVideoTapped!(reel, position);
-                }
-              },
-              errorBuilder: (context, reel, error) {
-                if (widget.onVideoError != null) {
-                  widget.onVideoError!(reel, error);
-                }
-                return widget.errorBuilder?.call(context, reel, error) ??
-                    const SizedBox.shrink();
-              },
-              loadingBuilder: widget.loadingBuilder,
-            ),
-            if (widget.overlayBuilder != null)
-              widget.overlayBuilder!(context, reel, controller)
-            else
-              ReelOverlay(
-                reel: reel,
-                config: widget.config,
-                onTap: () {
-                  if (widget.onVideoTapped != null) {
-                    final controller = context.read<ReelController>();
-                    widget.onVideoTapped!(reel, controller.currentPosition);
-                  }
-                },
-                onLike: () => widget.onReelLiked?.call(reel),
-                onShare: () => widget.onReelShared?.call(reel),
-                onComment: () => widget.onReelCommented?.call(reel),
-                onFollow: () => widget.onUserFollowed?.call(reel.user!),
-                onBlock: () => widget.onUserBlocked?.call(reel.user!),
-                onCompleted: () => widget.onVideoCompleted?.call(reel),
-              ),
-          ],
-        );
-      },
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ReelVideoPlayer(
+          reel: reel,
+          controller: _controller,
+          config: widget.config,
+          onTap: (position) {
+            if (widget.onVideoTapped != null) {
+              widget.onVideoTapped!(reel, position);
+            }
+          },
+          errorBuilder: (context, reel, error) {
+            if (widget.onVideoError != null) {
+              widget.onVideoError!(reel, error);
+            }
+            return widget.errorBuilder?.call(context, reel, error) ??
+                const SizedBox.shrink();
+          },
+          loadingBuilder: widget.loadingBuilder,
+        ),
+        if (widget.overlayBuilder != null)
+          widget.overlayBuilder!(context, reel, _controller)
+        else
+          ReelOverlay(
+            reel: reel,
+            config: widget.config,
+            onTap: () {
+              if (widget.onVideoTapped != null) {
+                widget.onVideoTapped!(reel, _controller.currentPosition);
+              }
+            },
+            onLike: () => widget.onReelLiked?.call(reel),
+            onShare: () => widget.onReelShared?.call(reel),
+            onComment: () => widget.onReelCommented?.call(reel),
+            onFollow: () => widget.onUserFollowed?.call(reel.user!),
+            onBlock: () => widget.onUserBlocked?.call(reel.user!),
+            onCompleted: () => widget.onVideoCompleted?.call(reel),
+          ),
+      ],
     );
   }
 
@@ -249,10 +247,8 @@ class _AwesomeReelsState extends State<AwesomeReels>
 
     return Container(
       color: widget.config.backgroundColor,
-      child: const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
+      child: Center(
+        child: Lottie.asset('assets/reel-loading.json'),
       ),
     );
   }
@@ -264,22 +260,15 @@ class _AwesomeReelsState extends State<AwesomeReels>
       color: widget.config.backgroundColor,
       child: Stack(
         children: [
-          // Background shimmer
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  shimmerConfig.baseColor,
-                  shimmerConfig.highlightColor,
-                  shimmerConfig.baseColor,
-                ],
-                stops: const [0.4, 0.5, 0.6],
-                begin: _getShimmerAlignment(shimmerConfig.direction, true),
-                end: _getShimmerAlignment(shimmerConfig.direction, false),
-              ),
+          ShimmerEffect(
+            baseColor: shimmerConfig.baseColor,
+            highlightColor: shimmerConfig.highlightColor,
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.white,
             ),
           ),
-
           // Overlay elements
           Positioned(
             bottom: 100,
@@ -298,7 +287,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
                       )),
             ),
           ),
-
           Positioned(
             bottom: 32,
             left: 16,
@@ -330,18 +318,70 @@ class _AwesomeReelsState extends State<AwesomeReels>
       ),
     );
   }
+}
 
-  Alignment _getShimmerAlignment(ShimmerDirection direction, bool isBegin) {
-    switch (direction) {
-      case ShimmerDirection.ltr:
-        return isBegin ? Alignment.centerLeft : Alignment.centerRight;
-      case ShimmerDirection.rtl:
-        return isBegin ? Alignment.centerRight : Alignment.centerLeft;
-      case ShimmerDirection.ttb:
-        return isBegin ? Alignment.topCenter : Alignment.bottomCenter;
-      case ShimmerDirection.btt:
-        return isBegin ? Alignment.bottomCenter : Alignment.topCenter;
-    }
+class ShimmerEffect extends StatefulWidget {
+  final Color baseColor;
+  final Color highlightColor;
+  final Widget child;
+  final Duration duration;
+
+  const ShimmerEffect({
+    Key? key,
+    required this.child,
+    this.baseColor = const Color(0xFFEEEEEE),
+    this.highlightColor = const Color(0xFFF5F5F5),
+    this.duration = const Duration(seconds: 2),
+  }) : super(key: key);
+
+  @override
+  State<ShimmerEffect> createState() => _ShimmerEffectState();
+}
+
+class _ShimmerEffectState extends State<ShimmerEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shimmerPosition = _controller.value * 2 - 1;
+        return ShaderMask(
+          shaderCallback: (rect) {
+            return LinearGradient(
+              colors: [
+                widget.baseColor,
+                widget.highlightColor,
+                widget.baseColor,
+              ],
+              stops: const [0.1, 0.5, 0.9],
+              begin: Alignment(-1 - shimmerPosition, 0),
+              end: Alignment(1 + shimmerPosition, 0),
+            ).createShader(rect);
+          },
+          child: widget.child,
+          blendMode: BlendMode.srcATop,
+        );
+      },
+      child: widget.child,
+    );
   }
 }
 

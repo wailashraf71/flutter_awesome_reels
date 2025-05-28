@@ -6,11 +6,11 @@ class SampleData {
     ReelModel(
       id: '1',
       videoUrl:
-          'https://videos.pexels.com/video-files/7657449/7657449-hd_1920_1080_25fps.mp4',
+          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
       user: const ReelUser(
         id: 'u1',
         username: 'alice',
-        displayName: 'Alice',
+        displayName: 'Alice in Wonderland',
       ),
       likesCount: 120,
       commentsCount: 15,
@@ -25,11 +25,11 @@ class SampleData {
     ReelModel(
       id: '2',
       videoUrl:
-          'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
+          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
       user: const ReelUser(
         id: 'u2',
         username: 'bob',
-        displayName: 'Bob',
+        displayName: 'Bob Builder',
         isFollowing: true,
       ),
       likesCount: 200,
@@ -49,11 +49,11 @@ class SampleData {
     ReelModel(
       id: '3',
       videoUrl:
-          'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
+          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
       user: const ReelUser(
         id: 'u3',
         username: 'charlie',
-        displayName: 'Charlie',
+        displayName: 'Charlie Chaplin',
       ),
       likesCount: 350,
       commentsCount: 50,

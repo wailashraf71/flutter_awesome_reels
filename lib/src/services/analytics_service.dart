@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -8,37 +7,36 @@ import '../models/reel_analytics.dart';
 /// Service for collecting and reporting analytics data
 class AnalyticsService {
   static AnalyticsService? _instance;
-  static AnalyticsService get instance => _instance ??= AnalyticsService._internal();
-  
+  static AnalyticsService get instance =>
+      _instance ??= AnalyticsService._internal();
+
   AnalyticsService._internal();
-  
+
   bool _isEnabled = false;
   DeviceInfo? _deviceInfo;
-  String? _sessionId;
   final Map<String, ReelAnalytics> _activeAnalytics = {};
   final List<ReelAnalytics> _pendingAnalytics = [];
-  
+
   /// Callback for sending analytics data to external service
   Future<void> Function(ReelAnalytics analytics)? onAnalyticsReported;
-  
+
   /// Callback for batch sending analytics data
-  Future<void> Function(List<ReelAnalytics> analytics)? onBatchAnalyticsReported;
+  Future<void> Function(List<ReelAnalytics> analytics)?
+      onBatchAnalyticsReported;
 
   /// Initialize the analytics service
   Future<void> initialize({
     bool enabled = true,
     Future<void> Function(ReelAnalytics analytics)? onAnalyticsReported,
-    Future<void> Function(List<ReelAnalytics> analytics)? onBatchAnalyticsReported,
+    Future<void> Function(List<ReelAnalytics> analytics)?
+        onBatchAnalyticsReported,
   }) async {
     _isEnabled = enabled;
     if (!_isEnabled) return;
-    
+
     this.onAnalyticsReported = onAnalyticsReported;
     this.onBatchAnalyticsReported = onBatchAnalyticsReported;
-    
-    // Generate session ID
-    _sessionId = _generateSessionId();
-    
+
     // Collect device information
     await _collectDeviceInfo();
   }
@@ -46,7 +44,7 @@ class AnalyticsService {
   /// Start tracking a reel session
   Future<void> startReelSession(String reelId, {String? userId}) async {
     if (!_isEnabled) return;
-    
+
     final sessionId = _generateSessionId();
     final analytics = ReelAnalytics(
       sessionId: sessionId,
@@ -56,22 +54,22 @@ class AnalyticsService {
       performanceMetrics: PerformanceMetrics(),
       sessionStartTime: DateTime.now(),
     );
-    
+
     _activeAnalytics[reelId] = analytics;
   }
 
   /// End tracking a reel session
   Future<void> endReelSession(String reelId) async {
     if (!_isEnabled) return;
-    
+
     final analytics = _activeAnalytics.remove(reelId);
     if (analytics != null) {
       final updatedAnalytics = analytics.copyWith(
         sessionEndTime: DateTime.now(),
       );
-      
+
       _pendingAnalytics.add(updatedAnalytics);
-      
+
       // Report immediately if callback is provided
       if (onAnalyticsReported != null) {
         try {
@@ -92,7 +90,7 @@ class AnalyticsService {
     Map<String, dynamic>? metadata,
   }) {
     if (!_isEnabled) return;
-    
+
     final analytics = _activeAnalytics[reelId];
     if (analytics != null) {
       final event = PlaybackEvent(
@@ -102,10 +100,10 @@ class AnalyticsService {
         duration: duration,
         metadata: metadata,
       );
-      
+
       final updatedEvents = List<PlaybackEvent>.from(analytics.playbackEvents)
         ..add(event);
-      
+
       _activeAnalytics[reelId] = analytics.copyWith(
         playbackEvents: updatedEvents,
       );
@@ -120,7 +118,7 @@ class AnalyticsService {
     Map<String, dynamic>? metadata,
   }) {
     if (!_isEnabled) return;
-    
+
     final analytics = _activeAnalytics[reelId];
     if (analytics != null) {
       final event = InteractionEvent(
@@ -129,10 +127,10 @@ class AnalyticsService {
         videoPosition: videoPosition,
         metadata: metadata,
       );
-      
-      final updatedEvents = List<InteractionEvent>.from(analytics.interactionEvents)
-        ..add(event);
-      
+
+      final updatedEvents =
+          List<InteractionEvent>.from(analytics.interactionEvents)..add(event);
+
       _activeAnalytics[reelId] = analytics.copyWith(
         interactionEvents: updatedEvents,
       );
@@ -145,7 +143,7 @@ class AnalyticsService {
     PerformanceMetrics metrics,
   ) {
     if (!_isEnabled) return;
-    
+
     final analytics = _activeAnalytics[reelId];
     if (analytics != null) {
       _activeAnalytics[reelId] = analytics.copyWith(
@@ -176,7 +174,8 @@ class AnalyticsService {
 
   /// Track video seeked
   void trackVideoSeeked(String reelId, Duration position, Duration? duration) {
-    trackPlaybackEvent(reelId, PlaybackEventType.seeked, position, duration: duration);
+    trackPlaybackEvent(reelId, PlaybackEventType.seeked, position,
+        duration: duration);
   }
 
   /// Track buffering started
@@ -235,18 +234,22 @@ class AnalyticsService {
   }
 
   /// Track tap gesture
-  void trackTap(String reelId, Duration videoPosition, Map<String, dynamic>? metadata) {
-    trackInteractionEvent(reelId, InteractionEventType.tap, videoPosition, metadata: metadata);
+  void trackTap(
+      String reelId, Duration videoPosition, Map<String, dynamic>? metadata) {
+    trackInteractionEvent(reelId, InteractionEventType.tap, videoPosition,
+        metadata: metadata);
   }
 
   /// Track double tap gesture
   void trackDoubleTap(String reelId, Duration videoPosition) {
-    trackInteractionEvent(reelId, InteractionEventType.doubleTap, videoPosition);
+    trackInteractionEvent(
+        reelId, InteractionEventType.doubleTap, videoPosition);
   }
 
   /// Track long press gesture
   void trackLongPress(String reelId, Duration videoPosition) {
-    trackInteractionEvent(reelId, InteractionEventType.longPress, videoPosition);
+    trackInteractionEvent(
+        reelId, InteractionEventType.longPress, videoPosition);
   }
 
   /// Track swipe gestures
@@ -268,8 +271,9 @@ class AnalyticsService {
       default:
         return;
     }
-    
-    trackInteractionEvent(reelId, eventType, videoPosition, metadata: {'direction': direction});
+
+    trackInteractionEvent(reelId, eventType, videoPosition,
+        metadata: {'direction': direction});
   }
 
   /// Get current analytics for a reel
@@ -290,7 +294,7 @@ class AnalyticsService {
   /// Send batch analytics
   Future<void> sendBatchAnalytics() async {
     if (!_isEnabled || _pendingAnalytics.isEmpty) return;
-    
+
     if (onBatchAnalyticsReported != null) {
       try {
         await onBatchAnalyticsReported!(_pendingAnalytics);
@@ -307,26 +311,35 @@ class AnalyticsService {
     if (analytics == null) {
       return AnalyticsSummary.empty();
     }
-    
+
     final playbackEvents = analytics.playbackEvents;
     final interactionEvents = analytics.interactionEvents;
     final performance = analytics.performanceMetrics;
-    
+
     // Calculate metrics
     final totalPlayTime = _calculateTotalPlayTime(playbackEvents);
     final watchPercentage = _calculateWatchPercentage(playbackEvents);
-    final interactionRate = _calculateInteractionRate(interactionEvents, totalPlayTime);
-    final bufferingEvents = playbackEvents.where((e) => e.type == PlaybackEventType.buffering).length;
-    
+    final interactionRate =
+        _calculateInteractionRate(interactionEvents, totalPlayTime);
+    final bufferingEvents = playbackEvents
+        .where((e) => e.type == PlaybackEventType.buffering)
+        .length;
+
     return AnalyticsSummary(
       totalPlayTime: totalPlayTime,
       watchPercentage: watchPercentage,
       interactionRate: interactionRate,
       bufferingEvents: bufferingEvents,
       performanceScore: _calculatePerformanceScore(performance),
-      likesCount: interactionEvents.where((e) => e.type == InteractionEventType.like).length,
-      commentsCount: interactionEvents.where((e) => e.type == InteractionEventType.comment).length,
-      sharesCount: interactionEvents.where((e) => e.type == InteractionEventType.share).length,
+      likesCount: interactionEvents
+          .where((e) => e.type == InteractionEventType.like)
+          .length,
+      commentsCount: interactionEvents
+          .where((e) => e.type == InteractionEventType.comment)
+          .length,
+      sharesCount: interactionEvents
+          .where((e) => e.type == InteractionEventType.share)
+          .length,
     );
   }
 
@@ -335,11 +348,11 @@ class AnalyticsService {
     try {
       final deviceInfoPlugin = DeviceInfoPlugin();
       final packageInfo = await PackageInfo.fromPlatform();
-      
+
       String platform;
       String? deviceModel;
       String? osVersion;
-      
+
       if (Platform.isAndroid) {
         final androidInfo = await deviceInfoPlugin.androidInfo;
         platform = 'Android';
@@ -355,7 +368,7 @@ class AnalyticsService {
         deviceModel = null;
         osVersion = null;
       }
-      
+
       _deviceInfo = DeviceInfo(
         platform: platform,
         deviceModel: deviceModel,
@@ -382,7 +395,7 @@ class AnalyticsService {
   Duration _calculateTotalPlayTime(List<PlaybackEvent> events) {
     Duration totalTime = Duration.zero;
     DateTime? playStartTime;
-    
+
     for (final event in events) {
       switch (event.type) {
         case PlaybackEventType.started:
@@ -400,20 +413,21 @@ class AnalyticsService {
           break;
       }
     }
-    
+
     // If still playing, add time until now
     if (playStartTime != null) {
       totalTime += DateTime.now().difference(playStartTime);
     }
-    
+
     return totalTime;
   }
 
   /// Calculate watch percentage
   double _calculateWatchPercentage(List<PlaybackEvent> events) {
-    final completedEvents = events.where((e) => e.type == PlaybackEventType.completed);
+    final completedEvents =
+        events.where((e) => e.type == PlaybackEventType.completed);
     if (completedEvents.isNotEmpty) return 100.0;
-    
+
     // Find the furthest position reached
     Duration maxPosition = Duration.zero;
     for (final event in events) {
@@ -421,37 +435,40 @@ class AnalyticsService {
         maxPosition = event.position;
       }
     }
-    
+
     // Calculate percentage based on video duration (if available)
     final durationEvents = events.where((e) => e.duration != null);
     if (durationEvents.isNotEmpty) {
       final duration = durationEvents.first.duration!;
-      return (maxPosition.inMilliseconds / duration.inMilliseconds * 100).clamp(0.0, 100.0);
+      return (maxPosition.inMilliseconds / duration.inMilliseconds * 100)
+          .clamp(0.0, 100.0);
     }
-    
+
     return 0.0;
   }
 
   /// Calculate interaction rate (interactions per minute of play time)
-  double _calculateInteractionRate(List<InteractionEvent> interactions, Duration playTime) {
+  double _calculateInteractionRate(
+      List<InteractionEvent> interactions, Duration playTime) {
     if (playTime.inSeconds == 0) return 0.0;
-    return interactions.length / (playTime.inMinutes > 0 ? playTime.inMinutes : 1.0);
+    return interactions.length /
+        (playTime.inMinutes > 0 ? playTime.inMinutes : 1.0);
   }
 
   /// Calculate performance score (0-100)
   double _calculatePerformanceScore(PerformanceMetrics metrics) {
     double score = 100.0;
-    
+
     // Penalize for frame drops
     if (metrics.totalFrames > 0) {
       final frameDropRate = metrics.droppedFrames / metrics.totalFrames;
       score -= frameDropRate * 30; // Max 30 points deduction
     }
-    
+
     // Penalize for buffering
     score -= metrics.bufferingCount * 5; // 5 points per buffering event
     score -= metrics.totalBufferingTime.inSeconds * 2; // 2 points per second
-    
+
     // Penalize for slow load time
     if (metrics.loadTime != null) {
       final loadTimeSeconds = metrics.loadTime!.inSeconds;
@@ -459,7 +476,7 @@ class AnalyticsService {
         score -= (loadTimeSeconds - 5) * 3; // 3 points per second over 5s
       }
     }
-    
+
     return score.clamp(0.0, 100.0);
   }
 

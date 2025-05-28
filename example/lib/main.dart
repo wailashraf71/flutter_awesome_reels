@@ -134,7 +134,7 @@ class HomeScreen extends StatelessWidget {
     VoidCallback onTap,
   ) {
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withAlpha(128),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),

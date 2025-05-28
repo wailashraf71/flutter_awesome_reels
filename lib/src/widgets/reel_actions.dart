@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
@@ -16,7 +16,7 @@ class ReelActions extends StatefulWidget {
   final VoidCallback? onBlock;
 
   const ReelActions({
-    Key? key,
+    super.key,
     required this.reel,
     required this.config,
     this.onLike,
@@ -24,7 +24,7 @@ class ReelActions extends StatefulWidget {
     this.onComment,
     this.onFollow,
     this.onBlock,
-  }) : super(key: key);
+  });
 
   @override
   State<ReelActions> createState() => _ReelActionsState();
@@ -82,83 +82,67 @@ class _ReelActionsState extends State<ReelActions>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ReelController>(
-      builder: (context, controller, child) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Like button
-            _buildActionButton(
-              icon:
-                  widget.reel.isLiked ? Icons.favorite : Icons.favorite_border,
-              iconColor:
-                  widget.reel.isLiked ? Colors.red : widget.config.textColor,
-              count: widget.reel.likesCount,
-              onTap: () => _handleLike(controller),
-              animation: _likeAnimation,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Comment button
-            _buildActionButton(
-              icon: Icons.comment,
-              iconColor: widget.config.textColor,
-              count: widget.reel.commentsCount,
-              onTap: () => _handleComment(controller),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Share button
-            _buildActionButton(
-              icon: Icons.share,
-              iconColor: widget.config.textColor,
-              count: widget.reel.sharesCount,
-              onTap: () => _handleShare(controller),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Bookmark button
-            if (widget.config.showBookmarkButton)
-              _buildActionButton(
-                icon: widget.reel.isBookmarked
-                    ? Icons.bookmark
-                    : Icons.bookmark_border,
-                iconColor: widget.reel.isBookmarked
-                    ? widget.config.accentColor
-                    : widget.config.textColor,
-                onTap: () => _handleBookmark(controller),
-              ),
-
-            if (widget.config.showBookmarkButton) const SizedBox(height: 16),
-
-            // Download button
-            if (widget.config.showDownloadButton)
-              _buildActionButton(
-                icon: Icons.download,
-                iconColor: widget.config.textColor,
-                onTap: () => _handleDownload(controller),
-              ),
-
-            if (widget.config.showDownloadButton) const SizedBox(height: 16),
-
-            // More options button
-            if (widget.config.showMoreButton)
-              _buildActionButton(
-                icon: Icons.more_vert,
-                iconColor: widget.config.textColor,
-                onTap: () => _showMoreOptions(context, controller),
-              ),
-
-            if (widget.config.showMoreButton)
-              const SizedBox(
-                  height: 16), // Creator avatar (spinning music note style)
-            if (widget.reel.musicTitle != null) _buildMusicAvatar(),
-          ],
-        );
-      },
+    final controller = Get.find<ReelController>();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Like button
+        _buildActionButton(
+          icon: widget.reel.isLiked ? Icons.favorite : Icons.favorite_border,
+          iconColor: widget.reel.isLiked ? Colors.red : widget.config.textColor,
+          count: widget.reel.likesCount,
+          onTap: () => _handleLike(controller),
+          animation: _likeAnimation,
+        ),
+        const SizedBox(height: 16),
+        // Comment button
+        _buildActionButton(
+          icon: Icons.comment,
+          iconColor: widget.config.textColor,
+          count: widget.reel.commentsCount,
+          onTap: () => _handleComment(controller),
+        ),
+        const SizedBox(height: 16),
+        // Share button
+        _buildActionButton(
+          icon: Icons.share,
+          iconColor: widget.config.textColor,
+          count: widget.reel.sharesCount,
+          onTap: () => _handleShare(controller),
+        ),
+        const SizedBox(height: 16),
+        // Bookmark button
+        if (widget.config.showBookmarkButton)
+          _buildActionButton(
+            icon: widget.reel.isBookmarked
+                ? Icons.bookmark
+                : Icons.bookmark_border,
+            iconColor: widget.reel.isBookmarked
+                ? widget.config.accentColor
+                : widget.config.textColor,
+            onTap: () => _handleBookmark(controller),
+          ),
+        if (widget.config.showBookmarkButton) const SizedBox(height: 16),
+        // Download button
+        if (widget.config.showDownloadButton)
+          _buildActionButton(
+            icon: Icons.download,
+            iconColor: widget.config.textColor,
+            onTap: () => _handleDownload(controller),
+          ),
+        if (widget.config.showDownloadButton) const SizedBox(height: 16),
+        // More options button
+        if (widget.config.showMoreButton)
+          _buildActionButton(
+            icon: Icons.more_vert,
+            iconColor: widget.config.textColor,
+            onTap: () => _showMoreOptions(context, controller),
+          ),
+        if (widget.config.showMoreButton)
+          const SizedBox(
+              height: 16), // Creator avatar (spinning music note style)
+        if (widget.reel.musicTitle != null) _buildMusicAvatar(),
+      ],
     );
   }
 
@@ -176,15 +160,6 @@ class _ReelActionsState extends State<ReelActions>
     );
 
     if (animation != null && !_isDisposed) {
-      // iconWidget = AnimatedBuilder(
-      //   animation: animation,
-      //   builder: (context, child) {
-      //     return Transform.scale(
-      //       scale: animation.value,
-      //       child: iconWidget,
-      //     );
-      //   },
-      // );
       iconWidget = Transform.scale(
         scale: animation.value,
         child: iconWidget,
@@ -199,7 +174,7 @@ class _ReelActionsState extends State<ReelActions>
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.black26,
               ),
@@ -238,7 +213,7 @@ class _ReelActionsState extends State<ReelActions>
                 gradient: LinearGradient(
                   colors: [
                     widget.config.accentColor,
-                    widget.config.accentColor.withOpacity(0.7),
+                    widget.config.accentColor.withAlpha(128),
                   ],
                 ),
                 border: Border.all(
@@ -571,11 +546,5 @@ class _ReelActionsState extends State<ReelActions>
         backgroundColor: widget.config.accentColor,
       ),
     );
-  }
-
-  void _handleFollow(ReelController controller) {
-    if (widget.reel.user?.id == null) return;
-    controller.followUser(widget.reel.user!.id);
-    if (widget.onFollow != null) widget.onFollow!();
   }
 }

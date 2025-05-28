@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -9,7 +8,6 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-
   Map<String, dynamic> _analytics = {};
   bool _isLoading = true;
 
@@ -21,10 +19,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadAnalytics() async {
     setState(() => _isLoading = true);
-    
+
     // Simulate loading analytics data
     await Future.delayed(const Duration(seconds: 2));
-    
+
     setState(() {
       _analytics = _generateSampleAnalytics();
       _isLoading = false;
@@ -32,7 +30,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Map<String, dynamic> _generateSampleAnalytics() {
-    final now = DateTime.now();
     return {
       'totalViews': 1234567,
       'totalLikes': 89012,
@@ -155,7 +152,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildOverviewSection() {
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -219,13 +216,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -254,7 +252,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildPerformanceMetrics() {
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -293,7 +291,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildProgressMetric(String title, String value, double progress, Color color) {
+  Widget _buildProgressMetric(
+      String title, String value, double progress, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -328,9 +327,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildTopPerformingReels() {
     final topReels = _analytics['topPerformingReels'] as List;
-    
+
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -370,7 +369,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   ) {
     final rankColors = [Colors.amber, Colors.grey, Colors.brown];
     final rankColor = rank <= 3 ? rankColors[rank - 1] : Colors.blue;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -421,10 +420,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildViewsChart() {
     final viewsByDay = _analytics['viewsByDay'] as List;
-    final maxViews = viewsByDay.map((e) => e['views'] as int).reduce((a, b) => a > b ? a : b);
-    
+    final maxViews = viewsByDay
+        .map((e) => e['views'] as int)
+        .reduce((a, b) => a > b ? a : b);
+
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -488,9 +489,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final audienceData = _analytics['audienceData'];
     final demographics = audienceData['demographics'] as Map<String, dynamic>;
     final topCountries = audienceData['topCountries'] as List;
-    
+
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -530,7 +531,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       child: LinearProgressIndicator(
                         value: entry.value / 100,
                         backgroundColor: Colors.white24,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.green),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -578,9 +580,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Widget _buildTechnicalMetrics() {
     final performance = _analytics['performance'];
-    
+
     return Card(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -644,13 +646,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildTechMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildTechMetricCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
