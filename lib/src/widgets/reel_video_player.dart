@@ -5,9 +5,9 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart';  
 
-/// Optimized video player widget for reels
+/// Instagram-like video player widget for reels
 class ReelVideoPlayer extends StatefulWidget {
   final ReelModel reel;
   final ReelController controller;
@@ -32,7 +32,8 @@ class ReelVideoPlayer extends StatefulWidget {
 
 class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
   final RxBool _isVisible = false.obs;
-  final RxBool _showControls = false.obs;
+  final RxBool _showPlayPauseIcon = false.obs;
+  final RxBool _isLongPressing = false.obs;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +43,9 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       child: GestureDetector(
         onTap: _onVideoTapped,
         onDoubleTap: _onVideoDoubleTapped,
-        child: Obx(() => Container(
+        onLongPressStart: _onLongPressStart,
+        onLongPressEnd: _onLongPressEnd,
+        child: Container(
           width: double.infinity,
           height: double.infinity,
           color: Colors.black,
@@ -50,14 +53,14 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
             fit: StackFit.expand,
             children: [
               _buildVideoContent(),
-              if (_showControls.value) _buildPlayPauseIcon(),
+              _buildProgressBar(),
+              _buildPlayPauseIcon(),
             ],
           ),
-        )),
+        ),
       ),
     );
   }
-
   Widget _buildVideoContent() {
     return Obx(() {
       final controller = widget.controller.currentVideoController;
@@ -65,6 +68,11 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       // Show loading if no controller or not initialized
       if (controller == null || !controller.value.isInitialized) {
         return _buildLoadingWidget();
+      }
+
+      // Show error if video has error
+      if (controller.value.hasError) {
+        return _buildErrorWidget(controller.value.errorDescription ?? 'Video failed to load');
       }
 
       // Show video with full screen cover
@@ -78,7 +86,6 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       );
     });
   }
-
   Widget _buildLoadingWidget() {
     if (widget.loadingBuilder != null) {
       return widget.loadingBuilder!(context, widget.reel);
@@ -97,26 +104,131 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
     );
   }
 
-  Widget _buildPlayPauseIcon() {
+  Widget _buildErrorWidget(String error) {
+    if (widget.errorBuilder != null) {
+      return widget.errorBuilder!(context, widget.reel, error);
+    }
+
     return Center(
-      child: AnimatedOpacity(
-        opacity: _showControls.value ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            widget.controller.isPlaying ? Icons.pause : Icons.play_arrow,
-            color: Colors.white,
-            size: 40,
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 48,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Video Error',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              error,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                // Retry loading the video
+                widget.controller.retry();
+              },
+              child: Text('Retry'),
+            ),
+          ],
         ),
       ),
     );
+  }
+  Widget _buildPlayPauseIcon() {
+    return Obx(() {
+      if (!_showPlayPauseIcon.value) return const SizedBox.shrink();
+      
+      return Center(
+        child: AnimatedOpacity(
+          opacity: _showPlayPauseIcon.value ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              widget.controller.isPlaying ? Icons.pause : Icons.play_arrow,
+              color: Colors.white,
+              size: 40,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildProgressBar() {
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Obx(() {
+        final controller = widget.controller.currentVideoController;
+        if (controller == null || !controller.value.isInitialized) {
+          return const SizedBox.shrink();
+        }
+
+        final duration = controller.value.duration;
+        final position = controller.value.position;
+        final progress = duration.inMilliseconds > 0 
+            ? position.inMilliseconds / duration.inMilliseconds 
+            : 0.0;
+
+        return Container(
+          height: 3,
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(1.5),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: progress.clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  void _onLongPressStart(LongPressStartDetails details) {
+    _isLongPressing.value = true;
+    widget.controller.pause();
+  }
+
+  void _onLongPressEnd(LongPressEndDetails details) {
+    _isLongPressing.value = false;
+    if (_isVisible.value) {
+      widget.controller.play();
+    }
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
@@ -131,15 +243,14 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       widget.controller.pause();
     }
   }
-
   void _onVideoTapped() {
     widget.controller.togglePlayPause();
     
     // Show play/pause icon briefly
-    _showControls.value = true;
+    _showPlayPauseIcon.value = true;
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
-        _showControls.value = false;
+        _showPlayPauseIcon.value = false;
       }
     });
 

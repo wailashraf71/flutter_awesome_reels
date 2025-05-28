@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/sample_data.dart';
-import 'screens/analytics_screen.dart';
+import 'screens/playground_screen.dart';
 import 'screens/demo_reels_screen.dart';
 
 void main() {
@@ -88,16 +88,15 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                _buildFeatureCard(
+                const SizedBox(height: 20),                _buildFeatureCard(
                   context,
-                  'Analytics Dashboard',
-                  'View detailed analytics and metrics',
-                  Icons.analytics,
+                  'Settings Playground',
+                  'Test and configure reel features',
+                  Icons.settings,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AnalyticsScreen(),
+                      builder: (context) => const PlaygroundScreen(),
                     ),
                   ),
                 ),

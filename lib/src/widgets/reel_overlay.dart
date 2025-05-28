@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:get/get.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
@@ -84,12 +83,41 @@ class ReelOverlay extends StatelessWidget {
                     left: 0,
                     right: 0,
                     child: _buildBottomControls(context, controller),
-                  ),
-
-                // Loading indicator
-                if (controller.isLoading)
+                  ),                // Loading indicator (only show if video controller exists but video not ready)
+                if (controller.currentVideoController != null && 
+                    !controller.currentVideoController!.value.isInitialized &&
+                    !controller.hasError)
                   Center(
-                    child: Lottie.asset('assets/reel-loading.json'),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                config.accentColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Loading...',
+                            style: TextStyle(
+                              color: config.textColor,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
 
                 // Error overlay

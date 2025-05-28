@@ -122,9 +122,10 @@ class _AwesomeReelsState extends State<AwesomeReels>
       _initializeController();
     }
   }
-
   Future<void> _initializeController() async {
-    _controller = ReelController();
+    if (!_isExternalController) {
+      _controller = ReelController();
+    }
 
     try {
       await _controller.initialize(
@@ -140,6 +141,11 @@ class _AwesomeReelsState extends State<AwesomeReels>
       }
     } catch (e) {
       debugPrint('Error initializing AwesomeReels: $e');
+      if (mounted) {
+        setState(() {
+          _isInitialized = true; // Still show UI even if init failed
+        });
+      }
     }
   }
 
@@ -248,7 +254,10 @@ class _AwesomeReelsState extends State<AwesomeReels>
     return Container(
       color: widget.config.backgroundColor,
       child: Center(
-        child: Lottie.asset('assets/reel-loading.json'),
+        child: Lottie.asset(
+          'packages/flutter_awesome_reels/assets/reel-loading.json',
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }

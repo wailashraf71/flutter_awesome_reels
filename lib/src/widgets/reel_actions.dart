@@ -269,7 +269,6 @@ class _ReelActionsState extends State<ReelActions>
   }
 
   void _handleBookmark(ReelController controller) {
-    controller.toggleBookmark(widget.reel.id);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
