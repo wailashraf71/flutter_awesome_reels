@@ -54,8 +54,11 @@ class ReelController extends GetxController {
   Duration get totalDuration => _totalDuration.value;
   String? get error => _error.value;
   double get pageScrollProgress => _pageScrollProgress.value;
+
   /// Additional getters for compatibility
-  bool get isLoading => !_isInitialized.value || (_currentReel.value != null && currentVideoController == null);
+  bool get isLoading =>
+      !_isInitialized.value ||
+      (_currentReel.value != null && currentVideoController == null);
   bool get hasError => _error.value != null;
   String? get errorMessage => _error.value;
 
@@ -63,7 +66,7 @@ class ReelController extends GetxController {
   VideoPlayerController? get currentVideoController {
     final reel = _currentReel.value;
     if (reel == null) return null;
-    
+
     final controller = _videoControllers[reel.id];
     if (controller != null && _activeVideoIds.contains(reel.id)) {
       return controller;
@@ -87,7 +90,7 @@ class ReelController extends GetxController {
     // Initialize page controller with scroll listener
     _pageController = config.pageController ??
         PageController(initialPage: _currentIndex.value);
-    
+
     // Add scroll listener for progress tracking
     _pageController.addListener(_onPageScroll);
 
@@ -125,15 +128,15 @@ class ReelController extends GetxController {
     final page = _pageController.page ?? 0.0;
     final currentPageIndex = page.round();
     final scrollOffset = (page - currentPageIndex).abs();
-    
+
     _pageScrollProgress.value = scrollOffset;
 
     // Update can play next based on scroll progress
     _canPlayNext.value = scrollOffset > 0.95; // 95% scrolled to play next video
 
     // Check if page changed
-    if (currentPageIndex != _currentIndex.value && 
-        currentPageIndex >= 0 && 
+    if (currentPageIndex != _currentIndex.value &&
+        currentPageIndex >= 0 &&
         currentPageIndex < _reels.length) {
       _onPageChanged(currentPageIndex);
     }
@@ -195,7 +198,7 @@ class ReelController extends GetxController {
     if (controller != null && controller.value.isInitialized) {
       // Ensure only one video plays at a time
       await _pauseAllVideosExceptCurrent();
-      
+
       await controller.play();
       _isPlaying.value = true;
       _playStartTime ??= DateTime.now();
@@ -218,7 +221,7 @@ class ReelController extends GetxController {
   /// Pause all videos except current (unique instance guarantee)
   Future<void> _pauseAllVideosExceptCurrent() async {
     final currentReelId = _currentReel.value?.id;
-    
+
     for (final entry in _videoControllers.entries) {
       if (entry.key != currentReelId && entry.value.value.isInitialized) {
         await entry.value.pause();
@@ -233,7 +236,7 @@ class ReelController extends GetxController {
     if (controller != null && controller.value.isInitialized) {
       await controller.pause();
       _isPlaying.value = false;
-      
+
       // Remove from active videos
       if (_currentReel.value != null) {
         _activeVideoIds.remove(_currentReel.value!.id);
@@ -269,12 +272,18 @@ class ReelController extends GetxController {
 
     return await _initializeVideo(reel);
   }
+
+  /// Get video controller for a specific reel (sync)
+  VideoPlayerController? getVideoControllerForReel(String reelId) {
+    return _videoControllers[reelId];
+  }
+
   /// Initialize video for a reel
   Future<VideoPlayerController?> _initializeVideo(ReelModel reel) async {
     try {
       // Clear any previous error
       _error.value = null;
-      
+
       // Check if already initialized
       if (_videoControllers.containsKey(reel.id)) {
         final existing = _videoControllers[reel.id]!;
@@ -285,14 +294,16 @@ class ReelController extends GetxController {
       }
 
       VideoPlayerController controller;
-      
+
       // Use cached file if available
       if (config.enableCaching) {
-        final cachedPath = await CacheManager.instance.getCachedFilePath(reel.videoUrl);
+        final cachedPath =
+            await CacheManager.instance.getCachedFilePath(reel.videoUrl);
         if (cachedPath != null) {
           controller = VideoPlayerController.file(File(cachedPath));
         } else {
-          controller = VideoPlayerController.networkUrl(Uri.parse(reel.videoUrl));
+          controller =
+              VideoPlayerController.networkUrl(Uri.parse(reel.videoUrl));
           // Cache in background
           CacheManager.instance.downloadAndCache(reel.videoUrl);
         }
@@ -318,6 +329,7 @@ class ReelController extends GetxController {
       return null;
     }
   }
+
   /// Handle video state changes
   void _onVideoStateChanged(String reelId, VideoPlayerController controller) {
     if (_isDisposed.value) return;
@@ -336,13 +348,14 @@ class ReelController extends GetxController {
       }
     }
   }
+
   /// Start playback for a reel
   Future<void> _startPlayback(ReelModel reel) async {
     final controller = _videoControllers[reel.id];
     if (controller != null && controller.value.isInitialized) {
       // Ensure unique playback
       await _pauseAllVideosExceptCurrent();
-      
+
       _activeVideoIds.add(reel.id);
       await controller.play();
       _isPlaying.value = true;
@@ -357,8 +370,10 @@ class ReelController extends GetxController {
     final preloadBehind = config.preloadConfig.preloadBehind;
 
     // Preload previous videos
-    for (int i = (currentIdx - preloadBehind).clamp(0, _reels.length - 1).round(); 
-         i < currentIdx; i++) {
+    for (int i =
+            (currentIdx - preloadBehind).clamp(0, _reels.length - 1).round();
+        i < currentIdx;
+        i++) {
       final reel = _reels[i];
       if (!_preloadedVideos.containsKey(reel.id)) {
         _initializeVideo(reel);
@@ -366,8 +381,9 @@ class ReelController extends GetxController {
     }
 
     // Preload next videos
-    for (int i = currentIdx + 1; 
-         i <= (currentIdx + preloadAhead).clamp(0, _reels.length - 1).round(); i++) {
+    for (int i = currentIdx + 1;
+        i <= (currentIdx + preloadAhead).clamp(0, _reels.length - 1).round();
+        i++) {
       final reel = _reels[i];
       if (!_preloadedVideos.containsKey(reel.id)) {
         _initializeVideo(reel);
@@ -410,13 +426,13 @@ class ReelController extends GetxController {
     final index = _reels.indexWhere((r) => r.id == reelId);
     if (index != -1) {
       _reels.removeAt(index);
-      
+
       // Dispose controller if exists
       final controller = _videoControllers.remove(reelId);
       controller?.dispose();
       _preloadedVideos.remove(reelId);
       _activeVideoIds.remove(reelId);
-      
+
       // Adjust current index if necessary
       if (_currentIndex.value >= _reels.length) {
         _currentIndex.value = (_reels.length - 1).clamp(0, _reels.length - 1);
@@ -449,12 +465,12 @@ class ReelController extends GetxController {
     if (reel != null) {
       final newLikeState = !reel.isLiked;
       final newCount = newLikeState ? reel.likesCount + 1 : reel.likesCount - 1;
-      
+
       final updatedReel = reel.copyWith(
         isLiked: newLikeState,
         likesCount: newCount,
       );
-      
+
       updateReel(reelId, updatedReel);
     }
   }
@@ -477,7 +493,7 @@ class ReelController extends GetxController {
       if (reel.user?.id == userId) {
         final currentFollowState = reel.user?.isFollowing ?? false;
         final newFollowState = !currentFollowState;
-        
+
         final updatedUser = reel.user?.copyWith(isFollowing: newFollowState);
         final updatedReel = reel.copyWith(user: updatedUser);
         updateReel(reelId, updatedReel);
@@ -557,7 +573,8 @@ class ReelController extends GetxController {
 
   /// Position stream (mock implementation)
   Stream<Duration> get positionStream {
-    return Stream.periodic(const Duration(milliseconds: 100), (_) => _currentPosition.value);
+    return Stream.periodic(
+        const Duration(milliseconds: 100), (_) => _currentPosition.value);
   }
 
   /// Was playing before seek (for progress indicator)
@@ -566,20 +583,20 @@ class ReelController extends GetxController {
   @override
   void onClose() {
     _isDisposed.value = true;
-    
+
     // Disable wakelock
     if (config.keepScreenAwake) {
       WakelockPlus.disable();
     }
-    
+
     // Dispose video controllers
     _disposeAllControllers();
-    
+
     // Dispose page controller
     if (!_pageController.hasClients) {
       _pageController.dispose();
     }
-    
+
     super.onClose();
   }
 }

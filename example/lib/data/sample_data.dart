@@ -25,7 +25,7 @@ class SampleData {
     ReelModel(
       id: '2',
       videoUrl:
-          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
+          'https://videos.pexels.com/video-files/4865389/4865389-uhd_1440_2732_25fps.mp4',
       user: const ReelUser(
         id: 'u2',
         username: 'bob',
@@ -49,7 +49,7 @@ class SampleData {
     ReelModel(
       id: '3',
       videoUrl:
-          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
+          'https://videos.pexels.com/video-files/8030193/8030193-hd_1080_1920_24fps.mp4',
       user: const ReelUser(
         id: 'u3',
         username: 'charlie',

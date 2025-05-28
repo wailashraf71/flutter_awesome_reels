@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
+import 'package:iconly/iconly.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
@@ -88,7 +97,7 @@ class _ReelActionsState extends State<ReelActions>
       children: [
         // Like button
         _buildActionButton(
-          icon: widget.reel.isLiked ? Icons.favorite : Icons.favorite_border,
+          icon: widget.reel.isLiked ? IconlyLight.heart : IconlyLight.heart,
           iconColor: widget.reel.isLiked ? Colors.red : widget.config.textColor,
           count: widget.reel.likesCount,
           onTap: () => _handleLike(controller),
@@ -97,7 +106,7 @@ class _ReelActionsState extends State<ReelActions>
         const SizedBox(height: 16),
         // Comment button
         _buildActionButton(
-          icon: Icons.comment,
+          icon: IconlyLight.chat,
           iconColor: widget.config.textColor,
           count: widget.reel.commentsCount,
           onTap: () => _handleComment(controller),
@@ -105,7 +114,7 @@ class _ReelActionsState extends State<ReelActions>
         const SizedBox(height: 16),
         // Share button
         _buildActionButton(
-          icon: Icons.share,
+          icon: IconlyLight.arrow_up_circle,
           iconColor: widget.config.textColor,
           count: widget.reel.sharesCount,
           onTap: () => _handleShare(controller),
@@ -115,8 +124,8 @@ class _ReelActionsState extends State<ReelActions>
         if (widget.config.showBookmarkButton)
           _buildActionButton(
             icon: widget.reel.isBookmarked
-                ? Icons.bookmark
-                : Icons.bookmark_border,
+                ? IconlyLight.bookmark
+                : IconlyLight.bookmark,
             iconColor: widget.reel.isBookmarked
                 ? widget.config.accentColor
                 : widget.config.textColor,
@@ -126,7 +135,7 @@ class _ReelActionsState extends State<ReelActions>
         // Download button
         if (widget.config.showDownloadButton)
           _buildActionButton(
-            icon: Icons.download,
+            icon: IconlyLight.download,
             iconColor: widget.config.textColor,
             onTap: () => _handleDownload(controller),
           ),
@@ -134,7 +143,7 @@ class _ReelActionsState extends State<ReelActions>
         // More options button
         if (widget.config.showMoreButton)
           _buildActionButton(
-            icon: Icons.more_vert,
+            icon: IconlyLight.more_circle,
             iconColor: widget.config.textColor,
             onTap: () => _showMoreOptions(context, controller),
           ),
@@ -172,16 +181,9 @@ class _ReelActionsState extends State<ReelActions>
         padding: const EdgeInsets.all(8),
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black26,
-              ),
-              child: iconWidget,
-            ),
+            iconWidget,
             if (count != null && count > 0) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 0),
               Text(
                 ReelUtils.formatCount(count),
                 style: TextStyle(
@@ -329,7 +331,7 @@ class _ReelActionsState extends State<ReelActions>
               child: Transform.scale(
                 scale: 0.5 + (0.5 * animation.value),
                 child: Icon(
-                  Icons.favorite,
+                  IconlyLight.heart,
                   color: Colors.red,
                   size: 30,
                 ),
@@ -411,7 +413,7 @@ class _ReelActionsState extends State<ReelActions>
                         subtitle:
                             Text('This is a sample comment #${index + 1}'),
                         trailing: IconButton(
-                          icon: Icon(Icons.favorite_border),
+                          icon: Icon(IconlyLight.heart),
                           onPressed: () {},
                         ),
                       );
@@ -450,7 +452,7 @@ class _ReelActionsState extends State<ReelActions>
                       CircleAvatar(
                         backgroundColor: widget.config.accentColor,
                         child: Icon(
-                          Icons.send,
+                          IconlyLight.send,
                           color: Colors.white,
                         ),
                       ),
@@ -474,7 +476,7 @@ class _ReelActionsState extends State<ReelActions>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.report),
+              leading: Icon(IconlyLight.danger),
               title: Text('Report'),
               onTap: () {
                 Navigator.pop(context);
@@ -482,7 +484,7 @@ class _ReelActionsState extends State<ReelActions>
               },
             ),
             ListTile(
-              leading: Icon(Icons.block),
+              leading: Icon(IconlyLight.delete),
               title: Text('Block user'),
               onTap: () {
                 Navigator.pop(context);
@@ -490,7 +492,7 @@ class _ReelActionsState extends State<ReelActions>
               },
             ),
             ListTile(
-              leading: Icon(Icons.copy),
+              leading: Icon(IconlyLight.info_square),
               title: Text('Copy link'),
               onTap: () {
                 Navigator.pop(context);

@@ -5,7 +5,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
-import 'package:get/get.dart';  
+import 'package:get/get.dart';
 
 /// Instagram-like video player widget for reels
 class ReelVideoPlayer extends StatefulWidget {
@@ -13,7 +13,8 @@ class ReelVideoPlayer extends StatefulWidget {
   final ReelController controller;
   final ReelConfig config;
   final void Function(Duration position)? onTap;
-  final Widget Function(BuildContext context, ReelModel reel, String error)? errorBuilder;
+  final Widget Function(BuildContext context, ReelModel reel, String error)?
+      errorBuilder;
   final Widget Function(BuildContext context, ReelModel reel)? loadingBuilder;
 
   const ReelVideoPlayer({
@@ -61,18 +62,25 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       ),
     );
   }
+
   Widget _buildVideoContent() {
     return Obx(() {
-      final controller = widget.controller.currentVideoController;
-      
+      final controller =
+          widget.controller.getVideoControllerForReel(widget.reel.id);
+
       // Show loading if no controller or not initialized
       if (controller == null || !controller.value.isInitialized) {
         return _buildLoadingWidget();
       }
 
+      if(_showPlayPauseIcon.value) { // just for obx improper use fix
+        return const SizedBox.shrink();
+      }
+
       // Show error if video has error
       if (controller.value.hasError) {
-        return _buildErrorWidget(controller.value.errorDescription ?? 'Video failed to load');
+        return _buildErrorWidget(
+            controller.value.errorDescription ?? 'Video failed to load');
       }
 
       // Show video with full screen cover
@@ -86,6 +94,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       );
     });
   }
+
   Widget _buildLoadingWidget() {
     if (widget.loadingBuilder != null) {
       return widget.loadingBuilder!(context, widget.reel);
@@ -155,10 +164,11 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       ),
     );
   }
+
   Widget _buildPlayPauseIcon() {
     return Obx(() {
       if (!_showPlayPauseIcon.value) return const SizedBox.shrink();
-      
+
       return Center(
         child: AnimatedOpacity(
           opacity: _showPlayPauseIcon.value ? 1.0 : 0.0,
@@ -187,15 +197,19 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       left: 20,
       right: 20,
       child: Obx(() {
-        final controller = widget.controller.currentVideoController;
+        final controller =
+            widget.controller.getVideoControllerForReel(widget.reel.id);
         if (controller == null || !controller.value.isInitialized) {
+          return const SizedBox.shrink();
+        }
+        if(_showPlayPauseIcon.value) { // just for obx improper use fix
           return const SizedBox.shrink();
         }
 
         final duration = controller.value.duration;
         final position = controller.value.position;
-        final progress = duration.inMilliseconds > 0 
-            ? position.inMilliseconds / duration.inMilliseconds 
+        final progress = duration.inMilliseconds > 0
+            ? position.inMilliseconds / duration.inMilliseconds
             : 0.0;
 
         return Container(
@@ -234,18 +248,19 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
   void _onVisibilityChanged(VisibilityInfo info) {
     final wasVisible = _isVisible.value;
     _isVisible.value = info.visibleFraction > 0.5;
-
-    if (_isVisible.value && !wasVisible) {
-      // Video became visible - play
+    final isCurrent = widget.controller.currentReel?.id == widget.reel.id;
+    if (_isVisible.value && !wasVisible && isCurrent) {
+      // Video became visible and is the current reel - play
       widget.controller.play();
-    } else if (!_isVisible.value && wasVisible) {
-      // Video became invisible - pause
+    } else if ((!_isVisible.value && wasVisible) || !isCurrent) {
+      // Video became invisible or is not the current reel - pause
       widget.controller.pause();
     }
   }
+
   void _onVideoTapped() {
     widget.controller.togglePlayPause();
-    
+
     // Show play/pause icon briefly
     _showPlayPauseIcon.value = true;
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -255,7 +270,8 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
     });
 
     if (widget.onTap != null) {
-      final controller = widget.controller.currentVideoController;
+      final controller =
+          widget.controller.getVideoControllerForReel(widget.reel.id);
       if (controller != null) {
         widget.onTap!(controller.value.position);
       }
