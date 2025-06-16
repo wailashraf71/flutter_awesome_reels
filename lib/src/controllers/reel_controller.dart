@@ -1,26 +1,35 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:video_player/video_player.dart' hide VideoFormat;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/reel_model.dart';
 import '../models/reel_config.dart';
 import '../services/cache_manager.dart';
+import '../services/streaming_service.dart';
 import 'dart:io';
 
 /// Controller for managing reel playback and state with Instagram-like behavior
 class ReelController extends GetxController {
+  final List<ReelModel> _reels;
+  late final ReelConfig _config;
   late PageController _pageController;
-  late ReelConfig _config;
 
-  final RxList<ReelModel> _reels = <ReelModel>[].obs;
+  final RxList<ReelModel> _reelsList = <ReelModel>[].obs;
+  // Video controllers for each reel
   final Map<String, VideoPlayerController> _videoControllers = {};
+  final Map<String, DateTime> _controllerAccessTimes = {};
   final Map<String, bool> _preloadedVideos = {};
   final Set<String> _activeVideoIds = {}; // Track unique active videos
+  final int _maxCachedControllers = 3;
+
+  // Streaming service instance
+  final StreamingService _streamingService = StreamingService();
 
   final RxInt _currentIndex = 0.obs;
   final RxBool _isInitialized = false.obs;
   final RxBool _isDisposed = false.obs;
-  final Rxn<ReelModel> _currentReel = Rxn<ReelModel>();
+  final RxBool _isVisible = true.obs;
+  final Rx<ReelModel?> _currentReel = Rx<ReelModel?>(null);
 
   // State properties
   final RxBool _isMuted = false.obs;
@@ -38,6 +47,52 @@ class ReelController extends GetxController {
   // Playtime tracking
   DateTime? _playStartTime;
   Duration _accumulatedPlayTime = Duration.zero;
+
+  ReelController({
+    required List<ReelModel> reels,
+    required ReelConfig config,
+  }) : _reels = reels {
+    _config = config;
+    _reelsList.clear();
+    _reelsList.addAll(reels);
+    _currentReel.value = reels.isNotEmpty ? reels[0] : null;
+  }
+
+  @override
+  void onInit() {
+    super.onInit();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    if (_reels.isEmpty) return;
+
+    // Initialize page controller
+    _pageController = PageController(
+      initialPage: 0,
+      viewportFraction: 1.0,
+    );
+
+    // Initialize first video
+    if (_reels.isNotEmpty) {
+      await _initializeCurrentVideo();
+    }
+
+    _isInitialized.value = true;
+  }
+
+  Future<void> _initializeCurrentVideo() async {
+    final currentReel = _currentReel.value;
+    if (currentReel == null) return;
+
+    try {
+      await initializeVideoForReel(currentReel.id);
+      await _startPlayback(currentReel);
+      _preloadAdjacentVideos(currentReel);
+    } catch (e) {
+      _error.value = 'Failed to initialize video: $e';
+    }
+  }
 
   // Getters
   PageController get pageController => _pageController;
@@ -74,6 +129,11 @@ class ReelController extends GetxController {
     return null;
   }
 
+  /// Get video controller for specific reel
+  VideoPlayerController? getVideoControllerForReel(String reelId) {
+    return _videoControllers[reelId];
+  }
+
   /// Initialize the controller
   Future<void> initialize({
     required List<ReelModel> reels,
@@ -96,7 +156,7 @@ class ReelController extends GetxController {
 
     // Initialize cache manager if enabled
     if (config.enableCaching) {
-      await CacheManager.instance.initialize(config.cacheConfig);
+      await CacheManager.instance.initialize();
     }
 
     // Keep screen awake if configured
@@ -111,12 +171,8 @@ class ReelController extends GetxController {
 
     // Initialize current video
     if (_currentReel.value != null) {
-      await _initializeVideo(_currentReel.value!);
-      await _startPlayback(_currentReel.value!);
+      await _initializeCurrentVideo();
     }
-
-    // Preload adjacent videos
-    _preloadAdjacentVideos();
 
     _isInitialized.value = true;
   }
@@ -171,8 +227,13 @@ class ReelController extends GetxController {
   Future<void> _onPageChanged(int index) async {
     if (index == _currentIndex.value) return;
 
-    // Pause current video
-    await _pauseCurrentVideo();
+    // Pause previous video
+    final previousReel = _reels[_currentIndex.value];
+    final previousController = _videoControllers[previousReel.id];
+    if (previousController != null && previousController.value.isInitialized) {
+      await previousController.pause();
+      _activeVideoIds.remove(previousReel.id);
+    }
 
     // Update index and current reel
     _currentIndex.value = index;
@@ -180,12 +241,8 @@ class ReelController extends GetxController {
 
     // Initialize and start new video
     if (_currentReel.value != null) {
-      await _initializeVideo(_currentReel.value!);
-      await _startPlayback(_currentReel.value!);
+      await _initializeCurrentVideo();
     }
-
-    // Preload adjacent videos
-    _preloadAdjacentVideos();
 
     // Reset scroll progress
     _pageScrollProgress.value = 0.0;
@@ -261,29 +318,76 @@ class ReelController extends GetxController {
     }
   }
 
-  /// Get video controller for specific reel (async initialization)
-  Future<VideoPlayerController?> getVideoController(String reelId) async {
-    if (_videoControllers.containsKey(reelId)) {
-      return _videoControllers[reelId];
-    }
-
-    final reel = _reels.firstWhereOrNull((r) => r.id == reelId);
-    if (reel == null) return null;
-
-    return await _initializeVideo(reel);
-  }
-
-  /// Get video controller for a specific reel (sync)
-  VideoPlayerController? getVideoControllerForReel(String reelId) {
-    return _videoControllers[reelId];
-  }
-
   /// Initialize video for a reel
   Future<VideoPlayerController?> _initializeVideo(ReelModel reel) async {
     try {
-      // Clear any previous error
-      _error.value = null;
+      // Check if already initialized
+      if (_videoControllers[reel.id] != null) {
+        final existing = _videoControllers[reel.id]!;
+        if (existing.value.isInitialized) {
+          _controllerAccessTimes[reel.id] = DateTime.now();
+          return existing;
+        }
+      }
 
+      // Clean up old controllers if we have too many
+      if (_videoControllers.length >= _maxCachedControllers) {
+        await _cleanupOldControllers();
+      }
+
+      // Create video player controller
+      final controller = await _streamingService.createVideoPlayerController(
+        reel,
+        config.videoPlayerConfig.streamingConfig,
+      );
+
+      // Add listener for state changes
+      controller.addListener(() => _onVideoStateChanged(reel.id, controller));
+
+      // Store controller
+      _videoControllers[reel.id] = controller;
+      _controllerAccessTimes[reel.id] = DateTime.now();
+      _activeVideoIds.add(reel.id);
+      _preloadedVideos[reel.id] = true;
+
+      return controller;
+    } catch (e) {
+      _error.value = 'Failed to load video: $e';
+      return null;
+    }
+  }
+
+  /// Clean up old controllers
+  Future<void> _cleanupOldControllers() async {
+    if (_videoControllers.isEmpty) return;
+
+    // Sort controllers by access time
+    final sortedControllers = _controllerAccessTimes.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
+    // Keep the most recently accessed controllers
+    final controllersToRemove = sortedControllers
+        .take((_videoControllers.length - _maxCachedControllers + 1)
+            .clamp(0, _videoControllers.length))
+        .map((e) => e.key)
+        .toList();
+
+    // Dispose and remove old controllers
+    for (final id in controllersToRemove) {
+      final controller = _videoControllers.remove(id);
+      if (controller != null) {
+        await controller.dispose();
+      }
+      _controllerAccessTimes.remove(id);
+      _activeVideoIds.remove(id);
+      _preloadedVideos.remove(id);
+    }
+  }
+
+  /// Initialize standard video player
+  Future<VideoPlayerController?> _initializeStandardPlayer(
+      ReelModel reel) async {
+    try {
       // Check if already initialized
       if (_videoControllers.containsKey(reel.id)) {
         final existing = _videoControllers[reel.id]!;
@@ -293,22 +397,32 @@ class ReelController extends GetxController {
         }
       }
 
+      // Clean up old controllers if we have too many
+      if (_videoControllers.length >= _maxCachedControllers) {
+        final oldest = _controllerAccessTimes.entries
+            .reduce((a, b) => a.value.isBefore(b.value) ? a : b)
+            .key;
+        _videoControllers[oldest]?.dispose();
+        _videoControllers.remove(oldest);
+        _controllerAccessTimes.remove(oldest);
+      }
+
       VideoPlayerController controller;
+      final videoUrl = reel.effectiveVideoUrl;
 
       // Use cached file if available
       if (config.enableCaching) {
         final cachedPath =
-            await CacheManager.instance.getCachedFilePath(reel.videoUrl);
+            await CacheManager.instance.getCachedFilePath(videoUrl);
         if (cachedPath != null) {
           controller = VideoPlayerController.file(File(cachedPath));
         } else {
-          controller =
-              VideoPlayerController.networkUrl(Uri.parse(reel.videoUrl));
+          controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
           // Cache in background
-          CacheManager.instance.downloadAndCache(reel.videoUrl);
+          CacheManager.instance.downloadAndCache(videoUrl);
         }
       } else {
-        controller = VideoPlayerController.networkUrl(Uri.parse(reel.videoUrl));
+        controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
       }
 
       // Initialize controller
@@ -320,13 +434,46 @@ class ReelController extends GetxController {
       controller.addListener(() => _onVideoStateChanged(reel.id, controller));
 
       _videoControllers[reel.id] = controller;
+      _controllerAccessTimes[reel.id] = DateTime.now();
       _activeVideoIds.add(reel.id);
       _preloadedVideos[reel.id] = true;
 
       return controller;
     } catch (e) {
-      _error.value = 'Failed to load video: $e';
-      return null;
+      debugPrint('Failed to initialize standard player: $e');
+      rethrow;
+    }
+  }
+
+  /// Determine optimal format for the current reel
+  Future<VideoFormat> _determineOptimalFormat(VideoSource videoSource) async {
+    final streamingConfig = config.videoPlayerConfig.streamingConfig;
+
+    switch (streamingConfig.preferredFormat) {
+      case PreferredStreamingFormat.hls:
+        return videoSource.hasFormat(VideoFormat.hls)
+            ? VideoFormat.hls
+            : videoSource.format;
+      case PreferredStreamingFormat.dash:
+        return videoSource.hasFormat(VideoFormat.dash)
+            ? VideoFormat.dash
+            : videoSource.format;
+      case PreferredStreamingFormat.mp4:
+        return videoSource.hasFormat(VideoFormat.mp4)
+            ? VideoFormat.mp4
+            : videoSource.format;
+      case PreferredStreamingFormat.auto:
+        // Auto-select based on platform and availability
+        if (Platform.isIOS && videoSource.hasFormat(VideoFormat.hls)) {
+          return VideoFormat.hls;
+        }
+        if (Platform.isAndroid && videoSource.hasFormat(VideoFormat.dash)) {
+          return VideoFormat.dash;
+        }
+        if (videoSource.hasFormat(VideoFormat.hls)) {
+          return VideoFormat.hls;
+        }
+        return videoSource.format;
     }
   }
 
@@ -360,34 +507,6 @@ class ReelController extends GetxController {
       await controller.play();
       _isPlaying.value = true;
       _playStartTime = DateTime.now();
-    }
-  }
-
-  /// Preload adjacent videos
-  void _preloadAdjacentVideos() {
-    final currentIdx = _currentIndex.value;
-    final preloadAhead = config.preloadConfig.preloadAhead;
-    final preloadBehind = config.preloadConfig.preloadBehind;
-
-    // Preload previous videos
-    for (int i =
-            (currentIdx - preloadBehind).clamp(0, _reels.length - 1).round();
-        i < currentIdx;
-        i++) {
-      final reel = _reels[i];
-      if (!_preloadedVideos.containsKey(reel.id)) {
-        _initializeVideo(reel);
-      }
-    }
-
-    // Preload next videos
-    for (int i = currentIdx + 1;
-        i <= (currentIdx + preloadAhead).clamp(0, _reels.length - 1).round();
-        i++) {
-      final reel = _reels[i];
-      if (!_preloadedVideos.containsKey(reel.id)) {
-        _initializeVideo(reel);
-      }
     }
   }
 
@@ -503,12 +622,16 @@ class ReelController extends GetxController {
 
   /// Dispose all video controllers
   void _disposeAllControllers() {
+    // Dispose video controllers
     for (final controller in _videoControllers.values) {
       controller.dispose();
     }
     _videoControllers.clear();
-    _preloadedVideos.clear();
+
+    // Clear active videos and preloaded videos
     _activeVideoIds.clear();
+    _preloadedVideos.clear();
+    _controllerAccessTimes.clear();
   }
 
   /// Get total accumulated playtime
@@ -534,23 +657,27 @@ class ReelController extends GetxController {
   /// Clear error state
   void clearError() {
     _error.value = null;
-  }  /// Retry failed operation with intelligent re-caching
+  }
+
+  /// Retry failed operation with intelligent re-caching
   Future<void> retry() async {
     _error.value = null;
     final currentReel = _currentReel.value;
     if (currentReel != null) {
       // Clear failed cached files
       if (config.enableCaching) {
-        await CacheManager.instance.removeCachedUrl(currentReel.videoUrl);
+        await CacheManager.instance.removeCachedUrl(
+            currentReel.videoSource?.getUrlForFormat(currentReel.videoFormat) ??
+                '');
       }
-      
+
       // Dispose existing controller if any
       final existingController = _videoControllers[currentReel.id];
       if (existingController != null) {
         await existingController.dispose();
         _videoControllers.remove(currentReel.id);
       }
-      
+
       // Re-initialize with fresh attempt
       await _initializeVideoWithRetry(currentReel, maxRetries: 3);
       await _startPlayback(currentReel);
@@ -567,9 +694,11 @@ class ReelController extends GetxController {
       return await _initializeVideo(reel);
     } catch (e) {
       if (currentRetry < maxRetries) {
-        debugPrint('Video init failed (attempt ${currentRetry + 1}/$maxRetries): $e');
+        debugPrint(
+            'Video init failed (attempt ${currentRetry + 1}/$maxRetries): $e');
         await Future.delayed(Duration(milliseconds: 500 * (currentRetry + 1)));
-        return await _initializeVideoWithRetry(reel, maxRetries: maxRetries, currentRetry: currentRetry + 1);
+        return await _initializeVideoWithRetry(reel,
+            maxRetries: maxRetries, currentRetry: currentRetry + 1);
       } else {
         _error.value = 'Failed to load video after $maxRetries attempts';
         return null;
@@ -629,5 +758,73 @@ class ReelController extends GetxController {
     }
 
     super.onClose();
+  }
+
+  Future<void> initializeVideoForReel(String reelId) async {
+    if (_isDisposed.value) return;
+
+    final reel = _reels.firstWhere(
+      (r) => r.id == reelId,
+      orElse: () => throw Exception('Reel not found'),
+    );
+
+    if (_videoControllers.containsKey(reelId)) {
+      _controllerAccessTimes[reelId] = DateTime.now();
+      return;
+    }
+
+    // Clean up old controllers if we're at the limit
+    if (_videoControllers.length >= _maxCachedControllers) {
+      _cleanupOldControllers();
+    }
+
+    final controller = await _createVideoController(reel.effectiveVideoUrl);
+
+    if (_isDisposed.value) {
+      controller.dispose();
+      return;
+    }
+
+    _videoControllers[reelId] = controller;
+    _controllerAccessTimes[reelId] = DateTime.now();
+
+    // Add listener for state changes
+    controller.addListener(() {
+      if (_isDisposed.value) return;
+
+      if (controller.value.hasError) {
+        debugPrint('Video error: ${controller.value.errorDescription}');
+      }
+    });
+
+    // Preload adjacent videos
+    _preloadAdjacentVideos(reel);
+  }
+
+  Future<VideoPlayerController> _createVideoController(String url) async {
+    if (config.enableCaching) {
+      final cachedPath = await CacheManager.instance.getCachedFilePath(url);
+      if (cachedPath != null) {
+        return VideoPlayerController.file(File(cachedPath));
+      }
+    }
+    return VideoPlayerController.networkUrl(Uri.parse(url));
+  }
+
+  void _preloadAdjacentVideos(ReelModel currentReel) {
+    final preloadRange = config.preloadRange ?? 1;
+    final currentIndex = _reels.indexWhere((r) => r.id == currentReel.id);
+
+    for (var i = 1; i <= preloadRange; i++) {
+      final nextIndex = currentIndex + i;
+      final prevIndex = currentIndex - i;
+
+      if (nextIndex < _reels.length) {
+        initializeVideoForReel(_reels[nextIndex].id);
+      }
+      if (prevIndex >= 0) {
+        initializeVideoForReel(_reels[prevIndex].id);
+      }
+    }
   }
 }

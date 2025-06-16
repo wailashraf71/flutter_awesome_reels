@@ -1,337 +1,469 @@
-# Flutter Awesome Reels 🎥
+# Flutter Awesome Reels
 
-A powerful, customizable Flutter widget for building TikTok/Instagram-style vertical video reels with advanced features like caching, analytics, and rich interactions.
+A powerful and feature-rich Flutter package for creating Instagram/TikTok-like video reels with advanced streaming support including HLS, DASH, and MP4 formats.
 
-![Flutter Awesome Reels Preview](preview.png)
+## Features
 
----
+### 🎥 Video Streaming Support
+- **HLS (HTTP Live Streaming)** - Adaptive bitrate streaming with excellent iOS support
+- **DASH (Dynamic Adaptive Streaming)** - High-quality streaming with broad compatibility
+- **MP4** - Standard video format with universal support
+- **Auto-format selection** - Intelligent format selection based on platform and network conditions
+- **Fallback support** - Automatic fallback to alternative formats if primary format fails
 
-## ✨ Features
+### 📱 Platform Optimized
+- **iOS**: Optimized for HLS streaming
+- **Android**: Optimized for DASH streaming
+- **Web**: Universal MP4 support
+- **Hardware acceleration** support
+- **Picture-in-Picture** mode
 
-### 🎬 **Core Video Features**
-- **Vertical Swipeable Feed**: Smooth PageView-based vertical scrolling
-- **Auto-play & Pause**: Intelligent video playback based on visibility
-- **Long-press Controls**: Pause/play videos with long-press gestures
-- **Looping Videos**: Seamless video loops for endless entertainment
-- **Intelligent Retry**: Automatic retry with exponential backoff for failed loads
+### ⚡ Performance Features
+- **Adaptive bitrate streaming** for optimal quality based on network conditions
+- **Intelligent caching** with configurable cache size and duration
+- **Video preloading** for smooth playback experience
+- **Memory management** with automatic controller cleanup
+- **Low latency streaming** support for live content
 
-### 🎨 **Rich Interactions**
-- **Double-tap to Like**: Instagram-style like animation
-- **Comment System**: Beautiful native comment bottom sheet with keyboard handling
-- **Follow/Unfollow**: Configurable follow button with custom colors
-- **Share & Bookmark**: Built-in sharing and bookmarking functionality
-- **More Menu**: Customizable overflow menu for additional actions
+### 🎨 UI/UX Features
+- **Instagram-like interface** with familiar gestures
+- **Customizable progress indicators**
+- **Shimmer loading effects**
+- **Error handling** with retry functionality
+- **Play/pause animations**
+- **Double-tap to like** with heart animation
+- **Long press to pause**
 
-### ⚡ **Performance & Caching**
-- **Smart Caching**: Advanced video caching with automatic cleanup
-- **Preloading**: Configurable video preloading (ahead/behind)
-- **Memory Management**: Efficient memory usage with lifecycle management
-- **Analytics Ready**: Built-in analytics service for engagement tracking
+### 🔧 Advanced Configuration
+- **Streaming quality control** (bitrate limits, resolution)
+- **Subtitle and audio track selection**
+- **DRM support** for protected content
+- **Network timeout and retry configuration**
+- **Custom error and loading widgets**
 
-### 🎛️ **Customization**
-- **Button Organization**: Move bookmark/download to more menu
-- **Color Themes**: Customizable accent colors and follow button colors
-- **Loading States**: Custom loading and error widgets
-- **Progress Indicators**: Configurable progress bars and time labels
+## Installation
 
----
-
-## 📦 Installation
-
-Add the dependency to your `pubspec.yaml`:
+Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  flutter_awesome_reels: ^0.0.2
+  flutter_awesome_reels: ^1.0.0
 ```
 
 Then run:
+
 ```bash
 flutter pub get
 ```
 
----
+## Quick Start
 
-## 🚀 Quick Start
-
-### 1. Import the package
+### Basic Usage
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
-```
 
-### 2. Create your reel data
+class MyReelsPage extends StatefulWidget {
+  @override
+  _MyReelsPageState createState() => _MyReelsPageState();
+}
 
-```dart
-final List<ReelModel> reels = [
-  ReelModel(
-    id: '1',
-    videoUrl: 'https://example.com/video1.mp4',
-    user: ReelUser(
-      id: 'u1',
-      username: 'john_doe',
-      displayName: 'John Doe',
-    ),
-    caption: 'Amazing sunset! #nature #beautiful',
-    likesCount: 1250,
-    commentsCount: 89,
-    tags: ['nature', 'sunset'],
-  ),
-  // Add more reels...
-];
-```
+class _MyReelsPageState extends State<MyReelsPage> {
+  late ReelController _controller;
 
-### 3. Display the reels
+  @override
+  void initState() {
+    super.initState();
+    
+    // Create reels with different streaming formats
+    final reels = [
+      // HLS Stream
+      ReelModel.hls(
+        id: '1',
+        hlsUrl: 'https://example.com/video.m3u8',
+        thumbnailUrl: 'https://example.com/thumb1.jpg',
+        duration: Duration(minutes: 2),
+        user: ReelUser(
+          id: 'user1',
+          username: 'creator1',
+          profilePictureUrl: 'https://example.com/avatar1.jpg',
+        ),
+        caption: 'Amazing HLS video!',
+      ),
+      
+      // DASH Stream
+      ReelModel.dash(
+        id: '2',
+        dashUrl: 'https://example.com/video.mpd',
+        thumbnailUrl: 'https://example.com/thumb2.jpg',
+        duration: Duration(minutes: 1, seconds: 30),
+        user: ReelUser(
+          id: 'user2',
+          username: 'creator2',
+          profilePictureUrl: 'https://example.com/avatar2.jpg',
+        ),
+        caption: 'High quality DASH stream!',
+      ),
+      
+      // Standard MP4
+      ReelModel.mp4(
+        id: '3',
+        mp4Url: 'https://example.com/video.mp4',
+        thumbnailUrl: 'https://example.com/thumb3.jpg',
+        duration: Duration(seconds: 45),
+        user: ReelUser(
+          id: 'user3',
+          username: 'creator3',
+          profilePictureUrl: 'https://example.com/avatar3.jpg',
+        ),
+        caption: 'Classic MP4 video!',
+      ),
+    ];
+    
+    // Configure with streaming support
+    final config = ReelConfig(
+      enableCaching: true,
+      videoPlayerConfig: VideoPlayerConfig(
+        useBetterPlayer: true, // Enable for HLS/DASH support
+        enableHardwareAcceleration: true,
+        streamingConfig: StreamingConfig(
+          preferredFormat: PreferredStreamingFormat.auto,
+          enableAdaptiveBitrate: true,
+          enableFallback: true,
+        ),
+      ),
+    );
+    
+    _controller = ReelController(
+      reels: reels,
+      config: config,
+    );
+  }
 
-```dart
-class ReelsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AwesomeReels(
-        reels: reels,
-        config: ReelConfig(
-          // Customize appearance and behavior
-          showProgressIndicator: true,
-          enableCaching: true,
-          accentColor: Colors.red,
-          followButtonColor: Colors.white,
-          bookmarkInMoreMenu: true,
-        ),
-        onReelLiked: (reel) {
-          print('Liked: ${reel.id}');
+      body: ReelViewer(
+        controller: _controller,
+        onReelChanged: (index) {
+          print('Current reel: $index');
         },
-        onReelShared: (reel) {
-          print('Shared: ${reel.id}');
+        onLike: (reel) {
+          print('Liked: ${reel.caption}');
         },
-        onUserFollowed: (user) {
-          print('Followed: ${user.username}');
+        onComment: (reel) {
+          print('Comment on: ${reel.caption}');
+        },
+        onShare: (reel) {
+          print('Share: ${reel.caption}');
         },
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 }
 ```
 
----
+### Advanced Streaming Configuration
 
-## 🎛️ Configuration Options
+```dart
+// Create a reel with multiple format support
+final multiFormatReel = ReelModel(
+  id: 'multi_1',
+  videoSource: VideoSource(
+    format: VideoFormat.hls, // Primary format
+    urls: {
+      VideoFormat.hls: 'https://example.com/video.m3u8',
+      VideoFormat.dash: 'https://example.com/video.mpd',
+      VideoFormat.mp4: 'https://example.com/video.mp4',
+    },
+  ),
+  thumbnailUrl: 'https://example.com/thumb.jpg',
+  duration: Duration(minutes: 3),
+  user: ReelUser(
+    id: 'user1',
+    username: 'creator',
+    profilePictureUrl: 'https://example.com/avatar.jpg',
+  ),
+  caption: 'Multi-format video with fallback support',
+);
+
+// Advanced streaming configuration
+final streamingConfig = StreamingConfig(
+  preferredFormat: PreferredStreamingFormat.hls,
+  enableAdaptiveBitrate: true,
+  enableLowLatency: false,
+  maxBitrate: 5000000, // 5 Mbps
+  minBitrate: 500000,  // 500 Kbps
+  enableSubtitleSelection: true,
+  enableAudioTrackSelection: true,
+  enableQualitySelection: true,
+  enableFallback: true,
+  fallbackFormats: [VideoFormat.dash, VideoFormat.mp4],
+  networkTimeout: Duration(seconds: 30),
+  maxRetryAttempts: 3,
+  enableDRM: false,
+);
+
+final config = ReelConfig(
+  enableCaching: true,
+  cacheConfig: CacheConfig(
+    maxCacheSize: 500 * 1024 * 1024, // 500MB
+    maxCacheAge: Duration(days: 7),
+  ),
+  videoPlayerConfig: VideoPlayerConfig(
+    useBetterPlayer: true,
+    enableHardwareAcceleration: true,
+    enablePictureInPicture: true,
+    streamingConfig: streamingConfig,
+  ),
+  preloadConfig: PreloadConfig(
+    preloadCount: 2,
+    preloadRadius: 1,
+  ),
+);
+```
+
+## Streaming Formats
+
+### HLS (HTTP Live Streaming)
+- **Best for**: iOS devices, adaptive streaming
+- **Features**: Automatic quality adjustment, low latency options
+- **File extension**: `.m3u8`
+- **Platform support**: Excellent on iOS, good on Android/Web
+
+```dart
+ReelModel.hls(
+  id: 'hls_video',
+  hlsUrl: 'https://example.com/playlist.m3u8',
+  // ... other properties
+);
+```
+
+### DASH (Dynamic Adaptive Streaming)
+- **Best for**: Android devices, high-quality streaming
+- **Features**: Superior compression, wide codec support
+- **File extension**: `.mpd`
+- **Platform support**: Excellent on Android, good on Web
+
+```dart
+ReelModel.dash(
+  id: 'dash_video',
+  dashUrl: 'https://example.com/manifest.mpd',
+  // ... other properties
+);
+```
+
+### MP4 (Standard Video)
+- **Best for**: Universal compatibility, simple implementation
+- **Features**: Wide support, easy to implement
+- **File extension**: `.mp4`
+- **Platform support**: Universal
+
+```dart
+ReelModel.mp4(
+  id: 'mp4_video',
+  mp4Url: 'https://example.com/video.mp4',
+  // ... other properties
+);
+```
+
+## Configuration Options
 
 ### ReelConfig
 
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enableCaching` | `bool` | `true` | Enable video caching |
+| `cacheConfig` | `CacheConfig` | `CacheConfig()` | Cache configuration |
+| `preloadConfig` | `PreloadConfig` | `PreloadConfig()` | Video preloading settings |
+| `videoPlayerConfig` | `VideoPlayerConfig` | `VideoPlayerConfig()` | Video player configuration |
+| `progressIndicatorConfig` | `ProgressIndicatorConfig` | `ProgressIndicatorConfig()` | Progress bar styling |
+| `shimmerConfig` | `ShimmerConfig` | `ShimmerConfig()` | Loading animation config |
+
+### StreamingConfig
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `preferredFormat` | `PreferredStreamingFormat` | `hls` | Preferred streaming format |
+| `enableAdaptiveBitrate` | `bool` | `true` | Enable adaptive bitrate |
+| `enableLowLatency` | `bool` | `false` | Enable low latency mode |
+| `maxBitrate` | `int?` | `null` | Maximum bitrate (bps) |
+| `minBitrate` | `int?` | `null` | Minimum bitrate (bps) |
+| `enableFallback` | `bool` | `true` | Enable format fallback |
+| `fallbackFormats` | `List<VideoFormat>` | `[dash, mp4]` | Fallback format order |
+| `networkTimeout` | `Duration` | `30s` | Network timeout |
+| `maxRetryAttempts` | `int` | `3` | Maximum retry attempts |
+
+### VideoPlayerConfig
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `useBetterPlayer` | `bool` | `false` | Use better_player for streaming |
+| `enableHardwareAcceleration` | `bool` | `true` | Enable hardware acceleration |
+| `enablePictureInPicture` | `bool` | `false` | Enable PiP mode |
+| `streamingConfig` | `StreamingConfig` | `StreamingConfig()` | Streaming configuration |
+
+## Best Practices
+
+### 1. Format Selection
+- Use **HLS** for iOS-first applications
+- Use **DASH** for Android-first applications
+- Use **Auto** for cross-platform applications
+- Always provide **MP4 fallback** for maximum compatibility
+
+### 2. Performance Optimization
 ```dart
-ReelConfig(
-  // UI Appearance
-  backgroundColor: Colors.black,
-  accentColor: Colors.red,
-  textColor: Colors.white,
-  
-  // Button Configuration
-  showFollowButton: true,
-  followButtonColor: Colors.white,
-  followingButtonColor: Colors.white70,
-  bookmarkInMoreMenu: true,     // Move bookmark to more menu
-  downloadInMoreMenu: true,     // Move download to more menu
-  
-  // Video Controls
-  showProgressIndicator: true,
+// Optimal configuration for performance
+final config = ReelConfig(
   enableCaching: true,
-  
-  // Performance
-  preloadConfig: PreloadConfig(
-    preloadAhead: 2,
-    preloadBehind: 1,
+  cacheConfig: CacheConfig(
+    maxCacheSize: 200 * 1024 * 1024, // 200MB
+    maxCacheAge: Duration(days: 3),
   ),
-  
-  // Analytics
-  enableAnalytics: true,
-)
-```
-
-### Button Organization
-
-Control where action buttons appear:
-
-```dart
-ReelConfig(
-  // Main action bar buttons
-  showBookmarkButton: true,
-  showDownloadButton: true,
-  
-  // Move to more menu (recommended for cleaner UI)
-  bookmarkInMoreMenu: true,    // Moves bookmark to ⋯ menu
-  downloadInMoreMenu: true,    // Moves download to ⋯ menu
-)
-```
-
----
-
-## 📱 Playground Example
-
-Try our interactive playground to see all features in action:
-
-```bash
-cd example
-flutter run
-```
-
-The playground includes:
-- **Live Preview**: Mini reels player with real-time configuration
-- **Settings Panel**: Adjust all configuration options
-- **Feature Testing**: Test long-press, double-tap, and other interactions
-
----
-
-## 🔧 Advanced Usage
-
-### Custom Actions
-
-Add custom actions to the more menu:
-
-```dart
-ReelConfig(
-  customActions: [
-    CustomAction(
-      icon: Icons.report,
-      title: 'Report',
-      onTap: (reel) {
-        // Handle report action
-      },
+  preloadConfig: PreloadConfig(
+    preloadCount: 1, // Preload next video only
+    preloadRadius: 1,
+  ),
+  videoPlayerConfig: VideoPlayerConfig(
+    useBetterPlayer: true,
+    enableHardwareAcceleration: true,
+    streamingConfig: StreamingConfig(
+      preferredFormat: PreferredStreamingFormat.auto,
+      enableAdaptiveBitrate: true,
+      maxBitrate: 3000000, // 3 Mbps max
+      minBitrate: 500000,  // 500 Kbps min
     ),
-    CustomAction(
-      icon: Icons.download,
-      title: 'Save to Gallery',
-      onTap: (reel) {
-        // Handle save action
-      },
-    ),
-  ],
-)
+  ),
+);
 ```
 
-### Analytics Integration
-
+### 3. Error Handling
 ```dart
-// Initialize analytics
-AnalyticsService.instance.initialize(
-  enabled: true,
-  onAnalyticsReported: (analytics) {
-    // Send to your analytics service
-    print('Video ${analytics.reelId} watched for ${analytics.watchDuration}');
+ReelViewer(
+  controller: _controller,
+  errorBuilder: (context, reel, error) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error, color: Colors.red, size: 48),
+            SizedBox(height: 16),
+            Text(
+              'Failed to load video',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () => _controller.retry(),
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
   },
 );
 ```
 
-### Custom Loading & Error Widgets
-
+### 4. Custom Loading Widget
 ```dart
-ReelConfig(
-  loadingWidgetBuilder: (context) {
-    return Center(
-      child: CircularProgressIndicator(color: Colors.red),
-    );
-  },
-  errorWidgetBuilder: (context, error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error, color: Colors.red, size: 48),
-          Text('Failed to load video', style: TextStyle(color: Colors.white)),
-          ElevatedButton(
-            onPressed: () => /* retry logic */,
-            child: Text('Retry'),
-          ),
-        ],
+ReelViewer(
+  controller: _controller,
+  loadingBuilder: (context, reel) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              'Loading ${reel.videoFormat.name.toUpperCase()} video...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   },
-)
+);
 ```
 
----
+## Platform-Specific Setup
 
-## 🎯 Key Features Showcase
+### iOS
+Add the following to your `ios/Runner/Info.plist`:
 
-### Long-press Controls
-- **Pause on press**: Hold down to pause video
-- **Resume on release**: Release to continue playing
-- **Visual feedback**: Smooth state transitions
-
-### Smart Caching
-- **Automatic management**: Videos cached automatically
-- **Size limits**: Configurable cache size (default: 100MB)
-- **Intelligent cleanup**: Old cache files automatically removed
-
-### Comment System
-- **Native bottom sheet**: Beautiful, iOS/Android native feel
-- **Keyboard handling**: Proper keyboard animations
-- **Rich interactions**: Like comments, reply functionality
-
----
-
-## 🔒 Permissions
-
-Add these permissions to your app:
-
-### Android (`android/app/src/main/AndroidManifest.xml`)
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-```
-
-### iOS (`ios/Runner/Info.plist`)
 ```xml
 <key>NSAppTransportSecurity</key>
 <dict>
-    <key>NSAllowsArbitraryLoads</key>
-    <true/>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
 </dict>
 ```
 
----
+### Android
+Add the following permissions to your `android/app/src/main/AndroidManifest.xml`:
 
-## 📋 Requirements
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
 
-- **Flutter**: >=3.0.0
-- **Dart**: >=3.0.0
-- **iOS**: >=12.0
-- **Android**: API level 21+
+## Dependencies
 
----
+This package uses the following dependencies:
 
-## 🤝 Contributing
+- `video_player`: Standard video playback
+- `better_player`: Advanced streaming support (HLS/DASH)
+- `connectivity_plus`: Network connectivity detection
+- `visibility_detector`: Viewport visibility detection
+- `get`: State management
+- `dio`: HTTP client for caching
+- `path_provider`: File system access
+- `lottie`: Loading animations
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+## Examples
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Check out the [example](example/) directory for complete implementation examples:
 
----
+- **Basic Usage**: Simple reel implementation
+- **Streaming Example**: Advanced streaming with HLS/DASH
+- **Custom UI**: Customized interface and controls
+- **Performance Optimized**: Optimized for large video lists
 
-## 📄 License
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
+## Changelog
 
-## 🌟 Star History
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes and updates.
 
-If you find this package helpful, please give it a ⭐ on [GitHub](https://github.com/wailashraf71/flutter_awesome_reels)!
+## Support
 
----
+If you encounter any issues or have questions:
 
-## 📚 More Examples
+1. Check the [documentation](https://pub.dev/packages/flutter_awesome_reels)
+2. Search [existing issues](https://github.com/your-repo/flutter_awesome_reels/issues)
+3. Create a [new issue](https://github.com/your-repo/flutter_awesome_reels/issues/new)
 
-Check out the `/example` directory for more comprehensive examples including:
-- Basic implementation
-- Custom theming
-- Analytics integration
-- Performance optimization
-- Advanced configuration
+## Acknowledgments
 
-Happy coding! 🚀
+- Inspired by Instagram and TikTok reel interfaces
+- Built with Flutter's powerful video capabilities
+- Thanks to the Flutter community for feedback and contributions

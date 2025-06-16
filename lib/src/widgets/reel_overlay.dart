@@ -8,7 +8,7 @@ import 'reel_actions.dart';
 import 'reel_progress_indicator.dart';
 
 /// Overlay widget that displays over the video with user info, actions, and controls
-class ReelOverlay extends StatelessWidget {
+class ReelOverlay extends StatefulWidget {
   final ReelModel reel;
   final ReelConfig config;
   final VoidCallback? onTap;
@@ -18,6 +18,7 @@ class ReelOverlay extends StatelessWidget {
   final VoidCallback? onFollow;
   final VoidCallback? onBlock;
   final VoidCallback? onCompleted;
+  final ReelController controller;
 
   const ReelOverlay({
     super.key,
@@ -30,13 +31,68 @@ class ReelOverlay extends StatelessWidget {
     this.onFollow,
     this.onBlock,
     this.onCompleted,
+    required this.controller,
   });
 
   @override
+  State<ReelOverlay> createState() => _ReelOverlayState();
+}
+
+class _ReelOverlayState extends State<ReelOverlay> {
+  void _showLikeAnimation() {
+    if (mounted) {
+      final overlay = Overlay.of(context);
+      late OverlayEntry entry;
+      entry = OverlayEntry(
+        builder: (context) => Center(
+          child: Icon(
+            Icons.favorite,
+            color: Colors.red,
+            size: 100,
+          ),
+        ),
+      );
+      overlay.insert(entry);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        entry.remove();
+      });
+    }
+  }
+
+  Widget _buildLikeButton() {
+    final isLiked = widget.reel.isLiked;
+    return GestureDetector(
+      onTap: () {
+        widget.controller.toggleLike(widget.reel.id);
+        if (!isLiked) {
+          _showLikeAnimation();
+        }
+      },
+      child: Column(
+        children: [
+          Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border,
+            color: isLiked ? Colors.red : widget.config.textColor,
+            size: 28,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.reel.likesCount.toString(),
+            style: TextStyle(
+              color: widget.config.textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.find<ReelController>();
     return Obx(() => GestureDetector(
-          onTap: onTap,
+          onTap: widget.onTap,
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -58,7 +114,7 @@ class ReelOverlay extends StatelessWidget {
                   bottom: 80,
                   left: 16,
                   right: 80,
-                  child: _buildUserInfo(context, controller),
+                  child: _buildUserInfo(context),
                 ),
 
                 // Actions on the right
@@ -66,27 +122,28 @@ class ReelOverlay extends StatelessWidget {
                   bottom: 80,
                   right: 12,
                   child: ReelActions(
-                    reel: reel,
-                    config: config,
-                    onLike: onLike,
-                    onShare: onShare,
-                    onComment: onComment,
-                    onFollow: onFollow,
-                    onBlock: onBlock,
+                    reel: widget.reel,
+                    config: widget.config,
+                    onLike: widget.onLike,
+                    onShare: widget.onShare,
+                    onComment: widget.onComment,
+                    onFollow: widget.onFollow,
+                    onBlock: widget.onBlock,
                   ),
                 ),
 
                 // Bottom controls
-                if (config.showBottomControls)
+                if (widget.config.showBottomControls)
                   Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    child: _buildBottomControls(context, controller),
-                  ),                // Loading indicator (only show if video controller exists but video not ready)
-                if (controller.currentVideoController != null && 
-                    !controller.currentVideoController!.value.isInitialized &&
-                    !controller.hasError)
+                    child: _buildBottomControls(context),
+                  ), // Loading indicator (only show if video controller exists but video not ready)
+                if (widget.controller.currentVideoController != null &&
+                    !widget.controller.currentVideoController!.value
+                        .isInitialized &&
+                    !widget.controller.hasError)
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(12),
@@ -94,38 +151,14 @@ class ReelOverlay extends StatelessWidget {
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                config.accentColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Loading...',
-                            style: TextStyle(
-                              color: config.textColor,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 
                 // Error overlay
-                if (controller.hasError)
-                  _buildErrorOverlay(context, controller),
+                if (widget.controller.hasError) _buildErrorOverlay(context),
 
                 // Buffering indicator
-                if (controller.isBuffering)
+                if (widget.controller.isBuffering)
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -138,14 +171,14 @@ class ReelOverlay extends StatelessWidget {
                         children: [
                           CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              config.accentColor,
+                              widget.config.accentColor,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Buffering...',
                             style: TextStyle(
-                              color: config.textColor,
+                              color: widget.config.textColor,
                               fontSize: 12,
                             ),
                           ),
@@ -160,8 +193,19 @@ class ReelOverlay extends StatelessWidget {
                   left: 0,
                   right: 0,
                   child: ReelProgressIndicator(
-                    reel: reel,
-                    config: config,
+                    reel: widget.reel,
+                    config: widget.config,
+                  ),
+                ),
+
+                // Like button
+                Positioned(
+                  right: 16,
+                  bottom: 100,
+                  child: Column(
+                    children: [
+                      _buildLikeButton(),
+                    ],
                   ),
                 ),
               ],
@@ -170,8 +214,8 @@ class ReelOverlay extends StatelessWidget {
         ));
   }
 
-  Widget _buildUserInfo(BuildContext context, ReelController controller) {
-    if (reel.user == null) {
+  Widget _buildUserInfo(BuildContext context) {
+    if (widget.reel.user == null) {
       return const SizedBox.shrink();
     }
 
@@ -183,14 +227,14 @@ class ReelOverlay extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundImage: reel.user!.profilePictureUrl != null
-                  ? NetworkImage(reel.user!.profilePictureUrl!)
+              backgroundImage: widget.reel.user!.profilePictureUrl != null
+                  ? NetworkImage(widget.reel.user!.profilePictureUrl!)
                   : null,
-              backgroundColor: config.accentColor,
-              child: reel.user!.profilePictureUrl == null
+              backgroundColor: widget.config.accentColor,
+              child: widget.reel.user!.profilePictureUrl == null
                   ? Icon(
                       Icons.person,
-                      color: config.textColor,
+                      color: widget.config.textColor,
                       size: 20,
                     )
                   : null,
@@ -201,28 +245,30 @@ class ReelOverlay extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    reel.user!.username,
+                    widget.reel.user!.username,
                     style: TextStyle(
-                      color: config.textColor,
+                      color: widget.config.textColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
-                  if (reel.user!.displayName != null)
+                  if (widget.reel.user!.displayName != null)
                     Text(
-                      reel.user!.displayName!,
+                      widget.reel.user!.displayName!,
                       style: TextStyle(
-                        color: config.textColor.withAlpha(192),
+                        color: widget.config.textColor.withAlpha(192),
                         fontSize: 12,
                       ),
                     ),
                 ],
               ),
-            ),            if (config.showFollowButton && !(reel.user?.isFollowing ?? true))
+            ),
+            if (widget.config.showFollowButton &&
+                !(widget.reel.user?.isFollowing ?? true))
               OutlinedButton(
-                onPressed: () => _handleFollow(context, controller),
+                onPressed: () => _handleFollow(context),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: config.followButtonColor),
+                  side: BorderSide(color: widget.config.followButtonColor),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 4,
@@ -231,7 +277,7 @@ class ReelOverlay extends StatelessWidget {
                 child: Text(
                   'Follow',
                   style: TextStyle(
-                    color: config.followButtonColor,
+                    color: widget.config.followButtonColor,
                     fontSize: 12,
                   ),
                 ),
@@ -240,33 +286,33 @@ class ReelOverlay extends StatelessWidget {
         ),
 
         const SizedBox(height: 12), // Caption
-        if (reel.caption?.isNotEmpty == true)
+        if (widget.reel.caption?.isNotEmpty == true)
           Text(
-            reel.caption!,
+            widget.reel.caption!,
             style: TextStyle(
-              color: config.textColor,
+              color: widget.config.textColor,
               fontSize: 14,
               height: 1.3,
             ),
-            maxLines: config.maxCaptionLines,
+            maxLines: widget.config.maxCaptionLines,
             overflow: TextOverflow.ellipsis,
           ),
 
         const SizedBox(height: 8),
 
         // Hashtags
-        if (reel.hashtags.isNotEmpty)
+        if (widget.reel.hashtags.isNotEmpty)
           Wrap(
             spacing: 8,
             runSpacing: 4,
-            children: reel.hashtags
+            children: widget.reel.hashtags
                 .map((hashtag) {
                   return GestureDetector(
                     onTap: () => _handleHashtagTap(context, hashtag),
                     child: Text(
                       '#$hashtag',
                       style: TextStyle(
-                        color: config.accentColor,
+                        color: widget.config.accentColor,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -280,20 +326,20 @@ class ReelOverlay extends StatelessWidget {
         const SizedBox(height: 8),
 
         // Music info
-        if (reel.musicTitle != null)
+        if (widget.reel.musicTitle != null)
           Row(
             children: [
               Icon(
                 Icons.music_note,
-                color: config.textColor.withAlpha(192),
+                color: widget.config.textColor.withAlpha(192),
                 size: 14,
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  reel.musicTitle!,
+                  widget.reel.musicTitle!,
                   style: TextStyle(
-                    color: config.textColor.withAlpha(192),
+                    color: widget.config.textColor.withAlpha(192),
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
                   ),
@@ -307,9 +353,9 @@ class ReelOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomControls(BuildContext context, ReelController controller) {
+  Widget _buildBottomControls(BuildContext context) {
     final isPlaying =
-        controller.currentVideoController?.value.isPlaying ?? false;
+        widget.controller.currentVideoController?.value.isPlaying ?? false;
 
     return Container(
       padding: EdgeInsets.only(
@@ -322,10 +368,10 @@ class ReelOverlay extends StatelessWidget {
         children: [
           // Play/Pause button
           IconButton(
-            onPressed: () => controller.togglePlayPause(),
+            onPressed: () => widget.controller.togglePlayPause(),
             icon: Icon(
               isPlaying ? Icons.pause : Icons.play_arrow,
-              color: config.textColor,
+              color: widget.config.textColor,
               size: 28,
             ),
           ),
@@ -335,17 +381,18 @@ class ReelOverlay extends StatelessWidget {
           // Progress bar
           Expanded(
             child: ReelProgressIndicator(
-              reel: reel,
-              config: config,
+              reel: widget.reel,
+              config: widget.config,
               showThumb: true,
             ),
           ),
 
           const SizedBox(width: 8), // Duration
           Text(
-            ReelUtils.formatDurationFromMilliseconds(reel.duration),
+            ReelUtils.formatDurationFromMilliseconds(
+                widget.reel.duration?.inMilliseconds),
             style: TextStyle(
-              color: config.textColor.withAlpha(192),
+              color: widget.config.textColor.withAlpha(192),
               fontSize: 12,
             ),
           ),
@@ -354,10 +401,10 @@ class ReelOverlay extends StatelessWidget {
 
           // Mute button
           IconButton(
-            onPressed: () => controller.toggleMute(),
+            onPressed: () => widget.controller.toggleMute(),
             icon: Icon(
-              controller.isMuted ? Icons.volume_off : Icons.volume_up,
-              color: config.textColor,
+              widget.controller.isMuted ? Icons.volume_off : Icons.volume_up,
+              color: widget.config.textColor,
               size: 24,
             ),
           ),
@@ -366,7 +413,7 @@ class ReelOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorOverlay(BuildContext context, ReelController controller) {
+  Widget _buildErrorOverlay(BuildContext context) {
     return Container(
       color: Colors.black54,
       child: Center(
@@ -397,7 +444,7 @@ class ReelOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                controller.errorMessage ?? 'Unknown error occurred',
+                widget.controller.errorMessage ?? 'Unknown error occurred',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.black54,
@@ -409,14 +456,14 @@ class ReelOverlay extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextButton(
-                    onPressed: () => controller.clearError(),
+                    onPressed: () => widget.controller.clearError(),
                     child: Text('Cancel'),
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton(
-                    onPressed: () => controller.retry(),
+                    onPressed: () => widget.controller.retry(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: config.accentColor,
+                      backgroundColor: widget.config.accentColor,
                     ),
                     child: Text('Retry'),
                   ),
@@ -429,26 +476,26 @@ class ReelOverlay extends StatelessWidget {
     );
   }
 
-  void _handleFollow(BuildContext context, ReelController controller) {
-    if (reel.user?.id == null) return;
+  void _handleFollow(BuildContext context) {
+    if (widget.reel.user?.id == null) return;
 
     // Implement follow functionality
-    controller.followUser(reel.user!.id);
+    widget.controller.followUser(widget.reel.user!.id);
 
     // Show snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Following ${reel.user!.username}'),
+        content: Text('Following ${widget.reel.user!.username}'),
         duration: const Duration(seconds: 2),
-        backgroundColor: config.accentColor,
+        backgroundColor: widget.config.accentColor,
       ),
     );
   }
 
   void _handleHashtagTap(BuildContext context, String hashtag) {
     // Navigate to hashtag page or trigger callback
-    if (config.onHashtagTap != null) {
-      config.onHashtagTap!(hashtag);
+    if (widget.config.onHashtagTap != null) {
+      widget.config.onHashtagTap!(hashtag);
     }
   }
 }

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/reel_config.dart';
 import 'package:video_player/video_player.dart';
+import 'package:crypto/crypto.dart';
 
 /// Advanced cache manager for video files and thumbnails
 class CacheManager {
@@ -33,50 +34,20 @@ class CacheManager {
   final int _maxMemoryFiles = 10;
 
   /// Initialize the cache manager
-  Future<void> initialize(CacheConfig config) async {
-    if (_isInitialized) return;
-
-    _config = config;
-    _dio = Dio();
-
-    // Setup cache directory
-    final appDir = await getApplicationDocumentsDirectory();
-    final cacheDir =
-        config.cacheDirectoryName ?? 'flutter_awesome_reels_cache_manager';
-    _cacheDirectory = Directory('${appDir.path}/$cacheDir');
-
-    if (!await _cacheDirectory.exists()) {
-      await _cacheDirectory.create(recursive: true);
-    }
-
-    // Load existing cache index
+  Future<void> initialize() async {
+    _cacheDirectory = await getTemporaryDirectory();
     await _loadCacheIndex();
-
-    // Cleanup expired cache
     await _cleanupExpiredCache();
-
-    // Ensure cache size is within limits
     await _enforceCacheSize();
-
-    _isInitialized = true;
   }
 
   /// Get cached file path for a URL (check memory cache first)
-  Future<String?> getCachedFilePath(String url) async {
-    if (!_isInitialized) return null;
+  String? getCachedFilePath(String url) {
     final cacheKey = _generateCacheKey(url);
-    // Check in-memory cache first
-    if (_memoryFileCache.containsKey(cacheKey)) {
-      return _memoryFileCache[cacheKey];
-    }
-    final cacheItem = _cacheIndex[cacheKey];
-    if (cacheItem != null && await _isCacheValid(cacheItem)) {
-      // Update access time
-      cacheItem.lastAccessTime = DateTime.now();
-      await _saveCacheIndex();
-      // Add to memory cache
-      _addToMemoryCache(cacheKey, cacheItem.filePath);
-      return cacheItem.filePath;
+    final item = _cacheIndex[cacheKey];
+    if (item != null && !item.isExpired) {
+      item.lastAccessTime = DateTime.now();
+      return item.filePath;
     }
     return null;
   }
@@ -87,10 +58,10 @@ class CacheManager {
     Function(int received, int total)? onProgress,
     CancelToken? cancelToken,
   }) async {
-    if (!_isInitialized) await initialize(_config);
+    if (!_isInitialized) await initialize();
 
     // Check if already cached
-    final cachedPath = await getCachedFilePath(url);
+    final cachedPath = getCachedFilePath(url);
     if (cachedPath != null) return cachedPath;
 
     // Check if download is already in progress
@@ -153,7 +124,7 @@ class CacheManager {
         filePath: filePath,
         cacheKey: cacheKey,
         fileSize: fileSize,
-        downloadTime: DateTime.now(),
+        createdAt: DateTime.now(),
         lastAccessTime: DateTime.now(),
         expiryTime: DateTime.now().add(_config.cacheDuration),
       );
@@ -178,7 +149,7 @@ class CacheManager {
 
   /// Check if a URL is cached
   Future<bool> isCached(String url) async {
-    final cachedPath = await getCachedFilePath(url);
+    final cachedPath = getCachedFilePath(url);
     return cachedPath != null;
   }
 
@@ -207,22 +178,15 @@ class CacheManager {
 
   /// Clear all cache
   Future<void> clearCache() async {
-    if (!_isInitialized) return;
-
     try {
-      // Delete all cached files
       for (final item in _cacheIndex.values) {
         final file = File(item.filePath);
         if (await file.exists()) {
           await file.delete();
         }
       }
-
-      // Clear index
       _cacheIndex.clear();
       await _saveCacheIndex();
-
-      debugPrint('Cache cleared successfully');
     } catch (e) {
       debugPrint('Error clearing cache: $e');
     }
@@ -250,7 +214,7 @@ class CacheManager {
 
   /// Generate cache key from URL
   String _generateCacheKey(String url) {
-    return url.hashCode.abs().toString();
+    return md5.convert(utf8.encode(url)).toString();
   }
 
   /// Generate filename from URL
@@ -285,37 +249,27 @@ class CacheManager {
   /// Load cache index from storage
   Future<void> _loadCacheIndex() async {
     try {
-      final indexFile = File('${_cacheDirectory.path}/cache_index.json');
-      if (await indexFile.exists()) {
-        final content = await indexFile.readAsString();
-        final Map<String, dynamic> indexData = Map<String, dynamic>.from(
-            (await compute(_parseJson, content)) ?? {});
-
-        for (final entry in indexData.entries) {
-          try {
-            _cacheIndex[entry.key] = CacheItem.fromJson(entry.value);
-          } catch (e) {
-            debugPrint('Error parsing cache item: $e');
-          }
-        }
+      final file = File('${_cacheDirectory.path}/cache_index.json');
+      if (await file.exists()) {
+        final json =
+            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        _cacheIndex.clear();
+        _cacheIndex.addAll(json.map((key, value) =>
+            MapEntry(key, CacheItem.fromJson(value as Map<String, dynamic>))));
       }
     } catch (e) {
       debugPrint('Error loading cache index: $e');
+      _cacheIndex.clear();
     }
   }
 
   /// Save cache index to storage
   Future<void> _saveCacheIndex() async {
     try {
-      final indexFile = File('${_cacheDirectory.path}/cache_index.json');
-      final indexData = <String, dynamic>{};
-
-      for (final entry in _cacheIndex.entries) {
-        indexData[entry.key] = entry.value.toJson();
-      }
-
-      final jsonString = await compute(_jsonEncode, indexData);
-      await indexFile.writeAsString(jsonString);
+      final file = File('${_cacheDirectory.path}/cache_index.json');
+      final json =
+          _cacheIndex.map((key, value) => MapEntry(key, value.toJson()));
+      await file.writeAsString(jsonEncode(json));
     } catch (e) {
       debugPrint('Error saving cache index: $e');
     }
@@ -397,47 +351,119 @@ class CacheManager {
   void cancelAllDownloads() {
     _downloadFutures.clear();
   }
+
   /// Get or create a video controller for a given reel ID
   dynamic getOrCreateVideoController(String reelId, String url) {
     if (_videoControllers.containsKey(reelId)) {
       _controllerAccessTimes[reelId] = DateTime.now();
       return _videoControllers[reelId];
     }
+
     // Before creating, evict if over limit
     if (_videoControllers.length >= _maxControllers) {
-      final oldest = _controllerAccessTimes.entries
-          .reduce((a, b) => a.value.isBefore(b.value) ? a : b)
-          .key;
-      _videoControllers[oldest]?.dispose();
-      _videoControllers.remove(oldest);
-      _controllerAccessTimes.remove(oldest);
+      _evictOldestController();
     }
+
     // Use cache file if available
-    final filePath = _cacheIndex[_generateCacheKey(url)]?.filePath;
+    final filePath = getCachedFilePath(url);
     final controller = filePath != null
         ? _createControllerFromFile(filePath)
         : _createControllerFromUrl(url);
-    
+
     // Initialize the controller immediately
     controller.initialize().then((_) {
       debugPrint('Video controller initialized for reel: $reelId');
     }).catchError((error) {
-      debugPrint('Error initializing video controller for reel $reelId: $error');
+      debugPrint(
+          'Error initializing video controller for reel $reelId: $error');
+      _videoControllers.remove(reelId);
+      _controllerAccessTimes.remove(reelId);
     });
-    
+
     _videoControllers[reelId] = controller;
     _controllerAccessTimes[reelId] = DateTime.now();
     return controller;
   }
 
-  // Helper to create controller from file
-  dynamic _createControllerFromFile(String filePath) {
-    return VideoPlayerController.file(File(filePath));
+  /// Evict the oldest controller
+  void _evictOldestController() {
+    if (_videoControllers.isEmpty) return;
+
+    final oldest = _controllerAccessTimes.entries
+        .reduce((a, b) => a.value.isBefore(b.value) ? a : b)
+        .key;
+
+    _videoControllers[oldest]?.dispose();
+    _videoControllers.remove(oldest);
+    _controllerAccessTimes.remove(oldest);
   }
 
-  // Helper to create controller from url
-  dynamic _createControllerFromUrl(String url) {
-    return VideoPlayerController.networkUrl(Uri.parse(url));
+  /// Download and cache a video file
+  Future<String?> _downloadAndCacheFile(String url) async {
+    final cacheKey = _generateCacheKey(url);
+
+    // Check if already downloading
+    if (_downloadFutures.containsKey(cacheKey)) {
+      return _downloadFutures[cacheKey];
+    }
+
+    // Check if already cached
+    if (_cacheIndex.containsKey(cacheKey)) {
+      final item = _cacheIndex[cacheKey]!;
+      if (!item.isExpired) {
+        return item.filePath;
+      }
+    }
+
+    // Start download
+    final downloadFuture = _downloadFile(url);
+    _downloadFutures[cacheKey] = downloadFuture;
+
+    try {
+      final filePath = await downloadFuture;
+      if (filePath != null) {
+        final file = File(filePath);
+        final fileSize = await file.length();
+        final now = DateTime.now();
+        await _addToCacheIndex(CacheItem(
+          cacheKey: cacheKey,
+          filePath: filePath,
+          url: url,
+          createdAt: now,
+          fileSize: fileSize,
+          lastAccessTime: now,
+          expiryTime: now.add(const Duration(days: 7)),
+        ));
+      }
+      return filePath;
+    } finally {
+      _downloadFutures.remove(cacheKey);
+    }
+  }
+
+  /// Download a file to cache
+  Future<String?> _downloadFile(String url) async {
+    try {
+      final response = await _dio.get(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final fileName = _generateFileName(url);
+        final file = File('${_cacheDirectory.path}/$fileName');
+        await file.writeAsBytes(response.data);
+        return file.path;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error downloading file: $e');
+      return null;
+    }
   }
 
   /// Add to cache index and evict if over size
@@ -481,51 +507,69 @@ class CacheManager {
       _memoryFileCache.remove(oldest);
     }
   }
+
+  // Helper to create controller from file
+  dynamic _createControllerFromFile(String filePath) {
+    return VideoPlayerController.file(File(filePath));
+  }
+
+  // Helper to create controller from url
+  dynamic _createControllerFromUrl(String url) {
+    return VideoPlayerController.networkUrl(Uri.parse(url));
+  }
+
+  /// Dispose the cache manager
+  void dispose() {
+    for (final controller in _videoControllers.values) {
+      controller.dispose();
+    }
+    _videoControllers.clear();
+    _controllerAccessTimes.clear();
+    _downloadFutures.clear();
+  }
 }
 
 /// Cache item data model
 class CacheItem {
-  final String url;
-  final String filePath;
   final String cacheKey;
+  final String filePath;
+  final String url;
+  final DateTime createdAt;
   final int fileSize;
-  final DateTime downloadTime;
-  DateTime lastAccessTime;
+  DateTime lastAccessTime; // Made non-final to allow updates
   final DateTime expiryTime;
 
   CacheItem({
-    required this.url,
-    required this.filePath,
     required this.cacheKey,
+    required this.filePath,
+    required this.url,
+    required this.createdAt,
     required this.fileSize,
-    required this.downloadTime,
     required this.lastAccessTime,
     required this.expiryTime,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'url': url,
-      'filePath': filePath,
-      'cacheKey': cacheKey,
-      'fileSize': fileSize,
-      'downloadTime': downloadTime.toIso8601String(),
-      'lastAccessTime': lastAccessTime.toIso8601String(),
-      'expiryTime': expiryTime.toIso8601String(),
-    };
-  }
+  bool get isExpired => DateTime.now().isAfter(expiryTime);
 
-  factory CacheItem.fromJson(Map<String, dynamic> json) {
-    return CacheItem(
-      url: json['url'],
-      filePath: json['filePath'],
-      cacheKey: json['cacheKey'],
-      fileSize: json['fileSize'],
-      downloadTime: DateTime.parse(json['downloadTime']),
-      lastAccessTime: DateTime.parse(json['lastAccessTime']),
-      expiryTime: DateTime.parse(json['expiryTime']),
-    );
-  }
+  Map<String, dynamic> toJson() => {
+        'cacheKey': cacheKey,
+        'filePath': filePath,
+        'url': url,
+        'createdAt': createdAt.toIso8601String(),
+        'fileSize': fileSize,
+        'lastAccessTime': lastAccessTime.toIso8601String(),
+        'expiryTime': expiryTime.toIso8601String(),
+      };
+
+  factory CacheItem.fromJson(Map<String, dynamic> json) => CacheItem(
+        cacheKey: json['cacheKey'] as String,
+        filePath: json['filePath'] as String,
+        url: json['url'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        fileSize: json['fileSize'] as int,
+        lastAccessTime: DateTime.parse(json['lastAccessTime'] as String),
+        expiryTime: DateTime.parse(json['expiryTime'] as String),
+      );
 }
 
 /// Cache statistics
@@ -565,18 +609,4 @@ class CacheStats {
   String toString() {
     return 'CacheStats(files: $totalFiles, size: $humanReadableSize, expired: $expiredFiles)';
   }
-}
-
-// Helper functions for compute
-Map<String, dynamic>? _parseJson(String jsonString) {
-  try {
-    final dynamic parsed = const JsonDecoder().convert(jsonString);
-    return parsed is Map<String, dynamic> ? parsed : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-String _jsonEncode(Map<String, dynamic> data) {
-  return const JsonEncoder().convert(data);
 }

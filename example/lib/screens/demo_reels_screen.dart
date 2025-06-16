@@ -18,8 +18,17 @@ class DemoReelsScreen extends StatefulWidget {
 }
 
 class _DemoReelsScreenState extends State<DemoReelsScreen> {
-  final ReelController _controller = ReelController();
+  late final ReelController _controller;
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ReelController(
+      reels: widget.reels,
+      config: widget.config ?? ReelConfig(),
+    );
+  }
 
   @override
   void dispose() {
@@ -37,12 +46,6 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showInfoDialog,
-          ),
-        ],
       ),
       body: AwesomeReels(
         reels: widget.reels,
@@ -81,80 +84,11 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
     );
   }
 
-  void _showInfoDialog() {
-    final currentReel = widget.reels[_currentIndex];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Text(
-          'Reel Information',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow(
-                'Creator', currentReel.user?.displayName ?? 'Unknown'),
-            _buildInfoRow('Username', '@${currentReel.user?.username}'),
-            _buildInfoRow('Likes', '${currentReel.likesCount}'),
-            _buildInfoRow('Comments', '${currentReel.commentsCount}'),
-            _buildInfoRow('Shares', '${currentReel.sharesCount}'),
-            _buildInfoRow('Views', '${currentReel.views}'),
-            _buildInfoRow('Duration', '${currentReel.duration! ~/ 1000}s'),
-            if (currentReel.location != null)
-              _buildInfoRow('Location', currentReel.location!),
-            if (currentReel.hashtags.isNotEmpty)
-              _buildInfoRow('Hashtags', currentReel.hashtags.join(', ')),
-            if (currentReel.musicTitle != null)
-              _buildInfoRow('Music', currentReel.musicTitle!),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white70,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showCommentDialog(ReelModel reel) {
     final TextEditingController commentController = TextEditingController();
 
     print('Commenting on reel: ${reel.id}');
     print('Reel user: ${reel.user?.displayName}');
-
   }
 
   void _showSnackBar(String message) {
@@ -166,4 +100,90 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
       ),
     );
   }
+}
+
+class SampleData {
+  static final List<ReelModel> basicReels = [
+    ReelModel(
+      id: '2',
+      videoSource: VideoSource(
+          url:
+              'https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd'),
+      user: const ReelUser(
+        id: 'u2',
+        username: 'bob',
+        displayName: 'Bob Builder',
+        isFollowing: true,
+      ),
+      likesCount: 200,
+      commentsCount: 30,
+      sharesCount: 10,
+      tags: ['adventure', 'travel'],
+      audio: const ReelAudio(title: 'Adventure Tune'),
+      duration: const Duration(seconds: 20),
+      isLiked: true,
+      views: 2500,
+      location: 'Mountains',
+    ),
+    ReelModel(
+      id: '3',
+      videoSource: VideoSource(
+          url:
+              'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'),
+      user: const ReelUser(
+        id: 'u3',
+        username: 'charlie',
+        displayName: 'Charlie Chaplin',
+      ),
+      likesCount: 300,
+      commentsCount: 45,
+      sharesCount: 20,
+      tags: ['comedy', 'classic'],
+      audio: const ReelAudio(title: 'Classic Comedy'),
+      duration: const Duration(seconds: 15),
+      isLiked: false,
+      views: 5000,
+      location: 'Hollywood',
+    ),
+    ReelModel(
+      id: '',
+      videoSource: VideoSource(
+          url:
+              'https://moctobpltc-i.akamaihd.net/hls/live/571329/eight/playlist.m3u8'),
+      user: const ReelUser(
+        id: 'u3',
+        username: 'charlie',
+        displayName: 'Charlie Chaplin',
+      ),
+      likesCount: 300,
+      commentsCount: 45,
+      sharesCount: 20,
+      tags: ['comedy', 'classic'],
+      audio: const ReelAudio(title: 'Classic Comedy'),
+      duration: const Duration(seconds: 15),
+      isLiked: false,
+      views: 5000,
+      location: 'Hollywood',
+    ),
+    ReelModel(
+      id: '1',
+      videoSource: VideoSource(
+          url:
+              'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4'),
+      user: const ReelUser(
+        id: 'u1',
+        username: 'alice',
+        displayName: 'Alice in Wonderland',
+      ),
+      likesCount: 120,
+      commentsCount: 15,
+      sharesCount: 5,
+      tags: ['fun', 'bunny'],
+      audio: const ReelAudio(title: 'Sample Music'),
+      duration: const Duration(seconds: 10),
+      isLiked: false,
+      views: 1000,
+      location: 'Wonderland',
+    ),
+  ];
 }

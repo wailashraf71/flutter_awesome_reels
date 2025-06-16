@@ -108,7 +108,12 @@ class _AwesomeReelsState extends State<AwesomeReels>
       _controller = widget.controller!;
       Get.put(_controller, permanent: true);
     } else {
-      _controller = Get.put(ReelController(), permanent: true);
+      _controller = Get.put(
+          ReelController(
+            reels: widget.reels,
+            config: widget.config,
+          ),
+          permanent: true);
     }
     _initializeController();
   }
@@ -122,9 +127,13 @@ class _AwesomeReelsState extends State<AwesomeReels>
       _initializeController();
     }
   }
+
   Future<void> _initializeController() async {
     if (!_isExternalController) {
-      _controller = ReelController();
+      _controller = ReelController(
+        reels: widget.reels,
+        config: widget.config,
+      );
     }
 
     try {
@@ -226,6 +235,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
           ReelOverlay(
             reel: reel,
             config: widget.config,
+            controller: _controller,
             onTap: () {
               if (widget.onVideoTapped != null) {
                 widget.onVideoTapped!(reel, _controller.currentPosition);
@@ -247,10 +257,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
       return widget.config.loadingWidgetBuilder!(context);
     }
 
-    if (widget.config.showShimmerWhileLoading) {
-      return _buildShimmerEffect();
-    }
-
     return Container(
       color: widget.config.backgroundColor,
       child: Center(
@@ -258,72 +264,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
           'packages/flutter_awesome_reels/assets/reel-loading.json',
           fit: BoxFit.contain,
         ),
-      ),
-    );
-  }
-
-  Widget _buildShimmerEffect() {
-    final shimmerConfig = widget.config.shimmerConfig ?? const ShimmerConfig();
-
-    return Container(
-      color: widget.config.backgroundColor,
-      child: Stack(
-        children: [
-          ShimmerEffect(
-            baseColor: shimmerConfig.baseColor,
-            highlightColor: shimmerConfig.highlightColor,
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.white,
-            ),
-          ),
-          // Overlay elements
-          Positioned(
-            bottom: 100,
-            right: 16,
-            child: Column(
-              children: List.generate(
-                  4,
-                  (index) => Container(
-                        width: 48,
-                        height: 48,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: shimmerConfig.highlightColor,
-                          shape: BoxShape.circle,
-                        ),
-                      )),
-            ),
-          ),
-          Positioned(
-            bottom: 32,
-            left: 16,
-            right: 80,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 120,
-                  height: 16,
-                  color: shimmerConfig.highlightColor,
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  height: 14,
-                  color: shimmerConfig.highlightColor,
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  width: 200,
-                  height: 14,
-                  color: shimmerConfig.highlightColor,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'data/sample_data.dart';
 import 'screens/playground_screen.dart';
 import 'screens/demo_reels_screen.dart';
 

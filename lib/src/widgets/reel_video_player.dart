@@ -31,10 +31,30 @@ class ReelVideoPlayer extends StatefulWidget {
   State<ReelVideoPlayer> createState() => _ReelVideoPlayerState();
 }
 
-class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVisible = false.obs;
+class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
+  final RxBool _isVisible = false.obs;
   final RxBool _showPlayPauseIcon = false.obs;
   final RxBool _isLongPressing = false.obs;
   bool _wasPlayingBeforeLongPress = false;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    if (_isInitialized) return;
+
+    final controller =
+        widget.controller.getVideoControllerForReel(widget.reel.id);
+    if (controller == null) {
+      await widget.controller.initializeVideoForReel(widget.reel.id);
+    }
+    _isInitialized = true;
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,52 +85,37 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
 
   Widget _buildVideoContent() {
     return Obx(() {
-      final controller =
-          widget.controller.getVideoControllerForReel(widget.reel.id);
-
-      // Show loading if no controller or not initialized
-      if (controller == null || !controller.value.isInitialized) {
-        return _buildLoadingWidget();
-      }
-
-      if(_showPlayPauseIcon.value) { // just for obx improper use fix
+      if (_showPlayPauseIcon.value) {
         return const SizedBox.shrink();
       }
 
-      // Show error if video has error
+      final controller =
+          widget.controller.getVideoControllerForReel(widget.reel.id);
+
+      if (controller == null) {
+        return widget.loadingBuilder?.call(context, widget.reel) ??
+            const Center(child: CircularProgressIndicator());
+      }
+
+      if (!controller.value.isInitialized || controller.value.isBuffering) {
+        return widget.loadingBuilder?.call(context, widget.reel) ??
+            const Center(child: CircularProgressIndicator());
+      }
+
       if (controller.value.hasError) {
         return _buildErrorWidget(
             controller.value.errorDescription ?? 'Video failed to load');
       }
 
-      // Show video with full screen cover
       return FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: controller.value.size.width,
-          height: controller.value.size.height,
+          width: controller.value.size?.width ?? 0,
+          height: controller.value.size?.height ?? 0,
           child: VideoPlayer(controller),
         ),
       );
     });
-  }
-
-  Widget _buildLoadingWidget() {
-    if (widget.loadingBuilder != null) {
-      return widget.loadingBuilder!(context, widget.reel);
-    }
-
-    // Single Lottie loading animation
-    return Center(
-      child: SizedBox(
-        width: 100,
-        height: 100,
-        child: Lottie.asset(
-          'packages/flutter_awesome_reels/assets/reel-loading.json',
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
   }
 
   Widget _buildErrorWidget(String error) {
@@ -128,13 +133,13 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               color: Colors.red,
               size: 48,
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Video Error',
               style: TextStyle(
                 color: Colors.white,
@@ -145,7 +150,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
             const SizedBox(height: 4),
             Text(
               error,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
               ),
@@ -155,7 +160,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
             ElevatedButton(
               onPressed: () {
                 // Retry loading the video
-                widget.controller.retry();
+                // widget.controller.retryCurrentVideo();
               },
               child: Text('Retry'),
             ),
@@ -197,12 +202,13 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
       left: 20,
       right: 20,
       child: Obx(() {
+        if (_showPlayPauseIcon.value) {
+          return const SizedBox.shrink();
+        }
+
         final controller =
             widget.controller.getVideoControllerForReel(widget.reel.id);
         if (controller == null || !controller.value.isInitialized) {
-          return const SizedBox.shrink();
-        }
-        if(_showPlayPauseIcon.value) { // just for obx improper use fix
           return const SizedBox.shrink();
         }
 
@@ -232,6 +238,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
       }),
     );
   }
+
   void _onLongPressStart(LongPressStartDetails details) {
     _isLongPressing.value = true;
     _wasPlayingBeforeLongPress = widget.controller.isPlaying;
@@ -248,13 +255,13 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
   void _onVisibilityChanged(VisibilityInfo info) {
     final wasVisible = _isVisible.value;
     _isVisible.value = info.visibleFraction > 0.5;
-    final isCurrent = widget.controller.currentReel?.id == widget.reel.id;
-    if (_isVisible.value && !wasVisible && isCurrent) {
-      // Video became visible and is the current reel - play
-      widget.controller.play();
-    } else if ((!_isVisible.value && wasVisible) || !isCurrent) {
-      // Video became invisible or is not the current reel - pause
-      widget.controller.pause();
+
+    if (_isVisible.value && !wasVisible) {
+      _initializeVideo();
+      final isCurrent = widget.controller.currentReel?.id == widget.reel.id;
+      if (isCurrent) {
+        widget.controller.play();
+      }
     }
   }
 
@@ -270,11 +277,13 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {  final RxBool _isVi
     });
 
     if (widget.onTap != null) {
+      Duration position = Duration.zero;
       final controller =
           widget.controller.getVideoControllerForReel(widget.reel.id);
       if (controller != null) {
-        widget.onTap!(controller.value.position);
+        position = controller.value.position;
       }
+      widget.onTap!(position);
     }
   }
 

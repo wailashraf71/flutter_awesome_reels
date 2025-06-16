@@ -37,27 +37,28 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
     return Obx(() {
       final videoController = controller.currentVideoController;
       if (videoController == null || !videoController.value.isInitialized) {
-        return const SizedBox.shrink(); // Don't show progress bar if not initialized
+        return const SizedBox
+            .shrink(); // Don't show progress bar if not initialized
       }
-      
+
       return ValueListenableBuilder<VideoPlayerValue>(
         valueListenable: videoController,
         builder: (context, value, child) {
           if (!value.isInitialized) {
             return const SizedBox.shrink();
           }
-          
+
           final position = value.position;
           final duration = value.duration;
-          
+
           if (duration.inMilliseconds <= 0) {
             return const SizedBox.shrink();
           }
-          
+
           final progress = _isDragging.value
               ? (_dragValue.value ?? 0.0)
               : position.inMilliseconds / duration.inMilliseconds;
-              
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -97,14 +98,17 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
     return Container(
       height: widget.height,
       decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.3),
         borderRadius: BorderRadius.circular(widget.height / 2),
-        color: Colors.white.withAlpha(128),
       ),
-      child: LinearProgressIndicator(
-        value: progress.clamp(0.0, 1.0),
-        backgroundColor: Colors.transparent,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          widget.config.accentColor,
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: progress.clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.config.progressColor ?? Colors.white,
+            borderRadius: BorderRadius.circular(widget.height / 2),
+          ),
         ),
       ),
     );
@@ -178,7 +182,8 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
           ),
         ),
       ],
-    );  }
+    );
+  }
 }
 
 /// Advanced progress indicator with buffering and chapters

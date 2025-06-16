@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_awesome_reels/flutter_awesome_reels.dart';
-import '../data/sample_data.dart';
 import 'demo_reels_screen.dart';
 
 /// Playground screen for testing and configuring reel features
