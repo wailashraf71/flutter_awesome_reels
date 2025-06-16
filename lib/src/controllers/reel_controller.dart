@@ -10,8 +10,8 @@ import 'dart:io';
 
 /// Controller for managing reel playback and state with Instagram-like behavior
 class ReelController extends GetxController {
-  final List<ReelModel> _reels;
-  late final ReelConfig _config;
+  List<ReelModel> _reels = [];
+  late ReelConfig _config;
   late PageController _pageController;
 
   final RxList<ReelModel> _reelsList = <ReelModel>[].obs;
@@ -49,13 +49,14 @@ class ReelController extends GetxController {
   Duration _accumulatedPlayTime = Duration.zero;
 
   ReelController({
-    required List<ReelModel> reels,
-    required ReelConfig config,
-  }) : _reels = reels {
-    _config = config;
+    List<ReelModel>? reels,
+    ReelConfig? config,
+  }) {
+    _reels = reels ?? [];
+    _config = config ?? ReelConfig();
     _reelsList.clear();
-    _reelsList.addAll(reels);
-    _currentReel.value = reels.isNotEmpty ? reels[0] : null;
+    _reelsList.addAll(_reels);
+    _currentReel.value = _reels.isNotEmpty ? _reels[0] : null;
   }
 
   @override
@@ -136,31 +137,35 @@ class ReelController extends GetxController {
 
   /// Initialize the controller
   Future<void> initialize({
-    required List<ReelModel> reels,
-    required ReelConfig config,
+    List<ReelModel>? reels,
+    ReelConfig? config,
     int initialIndex = 0,
   }) async {
     if (_isInitialized.value) return;
 
-    _config = config;
-    _reels.clear();
-    _reels.addAll(reels);
+    if (config != null) _config = config;
+    if (reels != null) {
+      _reels = reels;
+      _reelsList.clear();
+      _reelsList.addAll(reels);
+    }
+
     _currentIndex.value = initialIndex.clamp(0, _reels.length - 1);
 
     // Initialize page controller with scroll listener
-    _pageController = config.pageController ??
+    _pageController = _config.pageController ??
         PageController(initialPage: _currentIndex.value);
 
     // Add scroll listener for progress tracking
     _pageController.addListener(_onPageScroll);
 
     // Initialize cache manager if enabled
-    if (config.enableCaching) {
+    if (_config.enableCaching) {
       await CacheManager.instance.initialize();
     }
 
     // Keep screen awake if configured
-    if (config.keepScreenAwake) {
+    if (_config.keepScreenAwake) {
       WakelockPlus.enable();
     }
 
@@ -338,7 +343,7 @@ class ReelController extends GetxController {
       // Create video player controller
       final controller = await _streamingService.createVideoPlayerController(
         reel,
-        config.videoPlayerConfig.streamingConfig,
+        _config.videoPlayerConfig.streamingConfig,
       );
 
       // Add listener for state changes
@@ -411,7 +416,7 @@ class ReelController extends GetxController {
       final videoUrl = reel.effectiveVideoUrl;
 
       // Use cached file if available
-      if (config.enableCaching) {
+      if (_config.enableCaching) {
         final cachedPath =
             await CacheManager.instance.getCachedFilePath(videoUrl);
         if (cachedPath != null) {
@@ -447,7 +452,7 @@ class ReelController extends GetxController {
 
   /// Determine optimal format for the current reel
   Future<VideoFormat> _determineOptimalFormat(VideoSource videoSource) async {
-    final streamingConfig = config.videoPlayerConfig.streamingConfig;
+    final streamingConfig = _config.videoPlayerConfig.streamingConfig;
 
     switch (streamingConfig.preferredFormat) {
       case PreferredStreamingFormat.hls:
@@ -665,7 +670,7 @@ class ReelController extends GetxController {
     final currentReel = _currentReel.value;
     if (currentReel != null) {
       // Clear failed cached files
-      if (config.enableCaching) {
+      if (_config.enableCaching) {
         await CacheManager.instance.removeCachedUrl(
             currentReel.videoSource?.getUrlForFormat(currentReel.videoFormat) ??
                 '');
@@ -745,7 +750,7 @@ class ReelController extends GetxController {
     _isDisposed.value = true;
 
     // Disable wakelock
-    if (config.keepScreenAwake) {
+    if (_config.keepScreenAwake) {
       WakelockPlus.disable();
     }
 
@@ -802,7 +807,7 @@ class ReelController extends GetxController {
   }
 
   Future<VideoPlayerController> _createVideoController(String url) async {
-    if (config.enableCaching) {
+    if (_config.enableCaching) {
       final cachedPath = await CacheManager.instance.getCachedFilePath(url);
       if (cachedPath != null) {
         return VideoPlayerController.file(File(cachedPath));
@@ -812,7 +817,7 @@ class ReelController extends GetxController {
   }
 
   void _preloadAdjacentVideos(ReelModel currentReel) {
-    final preloadRange = config.preloadRange ?? 1;
+    final preloadRange = _config.preloadRange ?? 1;
     final currentIndex = _reels.indexWhere((r) => r.id == currentReel.id);
 
     for (var i = 1; i <= preloadRange; i++) {

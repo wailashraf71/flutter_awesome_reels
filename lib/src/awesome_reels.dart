@@ -108,12 +108,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
       _controller = widget.controller!;
       Get.put(_controller, permanent: true);
     } else {
-      _controller = Get.put(
-          ReelController(
-            reels: widget.reels,
-            config: widget.config,
-          ),
-          permanent: true);
+      _controller = Get.put(ReelController(), permanent: true);
     }
     _initializeController();
   }
@@ -129,13 +124,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
   }
 
   Future<void> _initializeController() async {
-    if (!_isExternalController) {
-      _controller = ReelController(
-        reels: widget.reels,
-        config: widget.config,
-      );
-    }
-
     try {
       await _controller.initialize(
         reels: widget.reels,
