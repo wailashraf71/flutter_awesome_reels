@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Represents a single reel item with all its metadata
 
 /// Enum for video streaming formats
@@ -40,19 +38,19 @@ extension VideoFormatExtension on VideoFormat {
 class VideoSource {
   /// Primary video URL (HLS by default)
   final String url;
-  
+
   /// Video format type
   final VideoFormat format;
-  
+
   /// Alternative video sources for different formats
   final Map<VideoFormat, String>? alternativeSources;
-  
+
   /// Video quality/resolution
   final String? quality;
-  
+
   /// Bitrate in kbps
   final int? bitrate;
-  
+
   /// Video dimensions
   final Size? dimensions;
 
@@ -73,17 +71,21 @@ class VideoSource {
 
   /// Check if format is available
   bool hasFormat(VideoFormat format) {
-    return this.format == format || alternativeSources?.containsKey(format) == true;
+    return this.format == format ||
+        alternativeSources?.containsKey(format) == true;
   }
 
   Map<String, dynamic> toJson() {
     return {
       'url': url,
       'format': format.name,
-      'alternativeSources': alternativeSources?.map((k, v) => MapEntry(k.name, v)),
+      'alternativeSources':
+          alternativeSources?.map((k, v) => MapEntry(k.name, v)),
       'quality': quality,
       'bitrate': bitrate,
-      'dimensions': dimensions != null ? {'width': dimensions!.width, 'height': dimensions!.height} : null,
+      'dimensions': dimensions != null
+          ? {'width': dimensions!.width, 'height': dimensions!.height}
+          : null,
     };
   }
 
@@ -96,9 +98,9 @@ class VideoSource {
       ),
       quality: json['quality'],
       bitrate: json['bitrate'],
-      dimensions: json['dimensions'] != null 
-        ? Size(json['dimensions']['width'], json['dimensions']['height'])
-        : null,
+      dimensions: json['dimensions'] != null
+          ? Size(json['dimensions']['width'], json['dimensions']['height'])
+          : null,
     );
   }
 
@@ -212,7 +214,8 @@ class ReelModel {
     this.shouldAutoplay = true,
     this.views = 0,
     this.location,
-  }) : assert(videoUrl != null || videoSource != null, 'Either videoUrl or videoSource must be provided');
+  }) : assert(videoUrl != null || videoSource != null,
+            'Either videoUrl or videoSource must be provided');
 
   /// Constructor for HLS streaming (recommended)
   ReelModel.hls({
@@ -237,15 +240,15 @@ class ReelModel {
     this.shouldAutoplay = true,
     this.views = 0,
     this.location,
-  }) : videoUrl = null,
-       videoSource = VideoSource(
-         url: hlsUrl,
-         format: VideoFormat.hls,
-         alternativeSources: alternativeSources,
-       );
+  })  : videoUrl = null,
+        videoSource = VideoSource(
+          url: hlsUrl,
+          format: VideoFormat.hls,
+          alternativeSources: alternativeSources,
+        );
 
   /// Constructor for DASH streaming
-   ReelModel.dash({
+  ReelModel.dash({
     required this.id,
     required String dashUrl,
     Map<VideoFormat, String>? alternativeSources,
@@ -267,12 +270,12 @@ class ReelModel {
     this.shouldAutoplay = true,
     this.views = 0,
     this.location,
-  }) : videoUrl = null,
-       videoSource = VideoSource(
-         url: dashUrl,
-         format: VideoFormat.dash,
-         alternativeSources: alternativeSources,
-       );
+  })  : videoUrl = null,
+        videoSource = VideoSource(
+          url: dashUrl,
+          format: VideoFormat.dash,
+          alternativeSources: alternativeSources,
+        );
 
   /// Constructor for MP4 streaming
   ReelModel.mp4({
@@ -297,12 +300,12 @@ class ReelModel {
     this.shouldAutoplay = true,
     this.views = 0,
     this.location,
-  }) : videoUrl = null,
-       videoSource = VideoSource(
-         url: mp4Url,
-         format: VideoFormat.mp4,
-         alternativeSources: alternativeSources,
-       );
+  })  : videoUrl = null,
+        videoSource = VideoSource(
+          url: mp4Url,
+          format: VideoFormat.mp4,
+          alternativeSources: alternativeSources,
+        );
 
   /// Get the effective video URL (backward compatibility)
   String get effectiveVideoUrl => videoSource?.url ?? videoUrl!;
@@ -312,7 +315,8 @@ class ReelModel {
 
   /// Check if streaming format is available
   bool hasStreamingFormat(VideoFormat format) {
-    return videoSource?.hasFormat(format) ?? (format == VideoFormat.mp4 && videoUrl != null);
+    return videoSource?.hasFormat(format) ??
+        (format == VideoFormat.mp4 && videoUrl != null);
   }
 
   /// Get URL for specific format
@@ -405,19 +409,17 @@ class ReelModel {
   factory ReelModel.fromJson(Map<String, dynamic> json) {
     // Handle backward compatibility
     VideoSource? videoSource;
-    String? videoUrl;
-    
+
     if (json['videoSource'] != null) {
       videoSource = VideoSource.fromJson(json['videoSource']);
     } else if (json['videoUrl'] != null) {
       // Legacy support - convert videoUrl to VideoSource
-      videoUrl = json['videoUrl'];
       videoSource = VideoSource(
         url: json['videoUrl'],
         format: VideoFormat.mp4, // Default to MP4 for legacy URLs
       );
     }
-    
+
     return ReelModel(
       id: json['id'],
       videoSource: videoSource,
@@ -595,4 +597,3 @@ class Size {
     );
   }
 }
-

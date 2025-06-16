@@ -170,7 +170,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
       child: widget.config.enablePullToRefresh
           ? RefreshIndicator(
               onRefresh: () async {
-                await _controller.refresh();
+                _controller.refresh();
               },
               child: _buildPageView(),
             )
@@ -229,7 +229,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
             controller: _controller,
             onTap: () {
               if (widget.onVideoTapped != null) {
-                widget.onVideoTapped!(reel, _controller.currentPosition);
+                widget.onVideoTapped!(reel, _controller.currentPosition.value);
               }
             },
             onLike: () => widget.onReelLiked?.call(reel),

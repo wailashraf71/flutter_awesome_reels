@@ -60,7 +60,7 @@ class _ReelWidgetState extends State<ReelWidget> {
 
   void _handleHorizontalDragStart(DragStartDetails details) {
     _dragStartX = details.globalPosition.dx;
-    _dragStartPosition = widget.controller.currentPosition;
+    _dragStartPosition = widget.controller.currentPosition.value;
     _isDragging = true;
   }
 
@@ -68,7 +68,7 @@ class _ReelWidgetState extends State<ReelWidget> {
     if (!_isDragging) return;
 
     final delta = details.globalPosition.dx - _dragStartX;
-    final duration = widget.controller.currentReel?.duration;
+    final duration = widget.controller.currentReel.value?.duration;
     if (duration == Duration.zero) return;
 
     final seekPercentage = delta / MediaQuery.of(context).size.width;
@@ -94,8 +94,7 @@ class _ReelWidgetState extends State<ReelWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final currentController =
-        widget.controller.currentVideoController;
+    final currentController = widget.controller.currentVideoController;
     if (currentController == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -127,8 +126,10 @@ class _ReelWidgetState extends State<ReelWidget> {
                 height: 2,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: LinearProgressIndicator(
-                  value: widget.controller.currentPosition.inMilliseconds /
-                      widget.controller.currentReel!.duration!.inMilliseconds,
+                  value:
+                      widget.controller.currentPosition.value.inMilliseconds /
+                          widget.controller.currentReel.value!.duration!
+                              .inMilliseconds,
                   backgroundColor: Colors.white24,
                   valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
@@ -141,9 +142,9 @@ class _ReelWidgetState extends State<ReelWidget> {
             Positioned.fill(
               child: Container(
                 color: Colors.black26,
-                child:                     IconButton(
+                child: IconButton(
                   icon: Icon(
-                    widget.controller.isPlaying
+                    widget.controller.isPlaying.value
                         ? Icons.pause
                         : Icons.play_arrow,
                     color: Colors.white,

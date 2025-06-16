@@ -234,7 +234,7 @@ class _ReelActionsState extends State<ReelActions>
   }
 
   void _handleLike(ReelController controller) {
-    controller.toggleLike(widget.reel.id);
+    controller.toggleLike(widget.reel);
 
     if (!widget.reel.isLiked) {
       if (mounted) {
@@ -257,7 +257,7 @@ class _ReelActionsState extends State<ReelActions>
   }
 
   void _handleShare(ReelController controller) {
-    controller.incrementShare(widget.reel.id);
+    controller.incrementShare(widget.reel);
 
     if (widget.config.onShareTap != null) {
       widget.config.onShareTap!(widget.reel);

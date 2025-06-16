@@ -63,7 +63,7 @@ class _ReelOverlayState extends State<ReelOverlay> {
     final isLiked = widget.reel.isLiked;
     return GestureDetector(
       onTap: () {
-        widget.controller.toggleLike(widget.reel.id);
+        widget.controller.toggleLike(widget.reel);
         if (!isLiked) {
           _showLikeAnimation();
         }
@@ -158,7 +158,7 @@ class _ReelOverlayState extends State<ReelOverlay> {
                 if (widget.controller.hasError) _buildErrorOverlay(context),
 
                 // Buffering indicator
-                if (widget.controller.isBuffering)
+                if (widget.controller.isBuffering.value)
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -403,7 +403,7 @@ class _ReelOverlayState extends State<ReelOverlay> {
           IconButton(
             onPressed: () => widget.controller.toggleMute(),
             icon: Icon(
-              widget.controller.isMuted ? Icons.volume_off : Icons.volume_up,
+              widget.controller.isMuted.value ? Icons.volume_off : Icons.volume_up,
               color: widget.config.textColor,
               size: 24,
             ),

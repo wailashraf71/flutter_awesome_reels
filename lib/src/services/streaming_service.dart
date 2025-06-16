@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart' hide VideoFormat;
-import 'package:meta/meta.dart';
 
 import '../models/reel_config.dart';
 import '../models/reel_model.dart';
@@ -152,61 +151,11 @@ class StreamingService {
 
   Future<bool> _isMobileNetwork() async {
     try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      return connectivityResult == ConnectivityResult.mobile;
+      final connectivityResults = await Connectivity().checkConnectivity();
+      return connectivityResults.contains(ConnectivityResult.mobile);
     } catch (e) {
       return false;
     }
-  }
-
-  /// Build error widget for streaming failures
-  Widget _buildErrorWidget(
-    BuildContext context,
-    String? errorMessage,
-    ReelModel reel,
-    StreamingConfig config,
-  ) {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.white,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Failed to load video',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (errorMessage != null) const SizedBox(height: 8),
-            if (errorMessage != null)
-              Text(
-                errorMessage,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Retry logic would be implemented here
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Check if streaming format is supported on current platform

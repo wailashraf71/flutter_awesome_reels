@@ -48,12 +48,22 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
     if (_isInitialized) return;
 
     try {
-      await widget.controller.initializeVideoForReel(widget.reel.id);
-      _isInitialized = true;
-      if (mounted) setState(() {});
+      // Only initialize if this reel is currently active or about to be active
+      if (widget.controller.isReelActive(widget.reel) ||
+          widget.controller.currentReel.value == widget.reel) {
+        await widget.controller.initializeVideoForReel(widget.reel);
+        _isInitialized = true;
+        if (mounted) {
+          setState(() {});
+        }
+      }
     } catch (e) {
-      debugPrint('Failed to initialize video for reel ${widget.reel.id}: $e');
-      if (mounted) setState(() {});
+      debugPrint('Failed to initialize video for reel: $e');
+      _isInitialized =
+          true; // Mark as initialized even on error to prevent infinite retry
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -86,40 +96,75 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
 
   Widget _buildVideoContent() {
     return Obx(() {
-      if (!_isVisible.value) {
+      // Get controller using the new approach
+      VideoPlayerController? controller =
+          widget.controller.getVideoControllerForReel(widget.reel);
+
+      // Show loading if controller is initializing
+      if (widget.controller.isVideoInitializing) {
         return Container(
           color: Colors.black,
-          child: widget.loadingBuilder?.call(context, widget.reel) ??
-              const Center(
-                child: CircularProgressIndicator(),
-              ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.white),
+                SizedBox(height: 16),
+                Text(
+                  'Initializing...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         );
       }
-      final controller =
-          widget.controller.getVideoControllerForReel(widget.reel.id);
 
+      // Show loading if no controller or not initialized
       if (controller == null || !controller.value.isInitialized) {
         return Container(
           color: Colors.black,
           child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.white),
+                SizedBox(height: 16),
+                Text(
+                  'Loading video...',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Check for errors
+      if (controller.value.hasError) {
+        return _buildErrorWidget(
+            controller.value.errorDescription ?? 'Unknown error');
+      }
+
+      // Add safety check for video size
+      final videoSize = controller.value.size;
+      if (videoSize.width <= 0 || videoSize.height <= 0) {
+        return Container(
+          color: Colors.black,
+          child: const Center(
             child: Text(
-              'Loading...',
+              'Invalid video dimensions',
               style: TextStyle(color: Colors.white),
             ),
           ),
         );
       }
 
-      if (controller.value.hasError) {
-        return _buildErrorWidget(
-            controller.value.errorDescription ?? 'Video failed to load');
-      }
-
       return FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: controller.value.size.width,
-          height: controller.value.size.height,
+          width: videoSize.width,
+          height: videoSize.height,
           child: VideoPlayer(controller),
         ),
       );
@@ -194,11 +239,13 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
               color: Colors.black.withOpacity(0.6),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              widget.controller.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
-              size: 40,
-            ),
+            child: Obx(() => Icon(
+                  widget.controller.isPlaying.value
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 40,
+                )),
           ),
         ),
       );
@@ -216,7 +263,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
         }
 
         final controller =
-            widget.controller.getVideoControllerForReel(widget.reel.id);
+            widget.controller.getVideoControllerForReel(widget.reel);
         if (controller == null || !controller.value.isInitialized) {
           return const SizedBox.shrink();
         }
@@ -250,7 +297,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
 
   void _onLongPressStart(LongPressStartDetails details) {
     _isLongPressing.value = true;
-    _wasPlayingBeforeLongPress = widget.controller.isPlaying;
+    _wasPlayingBeforeLongPress = widget.controller.isPlaying.value;
     widget.controller.pause();
   }
 
@@ -267,7 +314,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
 
     if (_isVisible.value && !wasVisible) {
       _initializeVideo();
-      final isCurrent = widget.controller.currentReel?.id == widget.reel.id;
+      final isCurrent = widget.controller.isReelActive(widget.reel);
       if (isCurrent) {
         widget.controller.play();
       }
@@ -288,7 +335,7 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
     if (widget.onTap != null) {
       Duration position = Duration.zero;
       final controller =
-          widget.controller.getVideoControllerForReel(widget.reel.id);
+          widget.controller.getVideoControllerForReel(widget.reel);
       if (controller != null) {
         position = controller.value.position;
       }

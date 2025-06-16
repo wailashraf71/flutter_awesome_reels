@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/reel_config.dart';
 import 'package:video_player/video_player.dart';
-import 'package:crypto/crypto.dart';
 
 /// Advanced cache manager for video files and thumbnails
 class CacheManager {
@@ -214,7 +213,8 @@ class CacheManager {
 
   /// Generate cache key from URL
   String _generateCacheKey(String url) {
-    return md5.convert(utf8.encode(url)).toString();
+    // Simple hash function as replacement for md5
+    return url.hashCode.abs().toString();
   }
 
   /// Generate filename from URL
@@ -223,27 +223,6 @@ class CacheManager {
     final extension = uri.path.split('.').last;
     final cacheKey = _generateCacheKey(url);
     return '$cacheKey.$extension';
-  }
-
-  /// Check if cache item is valid
-  Future<bool> _isCacheValid(CacheItem item) async {
-    // Check if file exists
-    final file = File(item.filePath);
-    if (!await file.exists()) {
-      _cacheIndex.remove(item.cacheKey);
-      await _saveCacheIndex();
-      return false;
-    }
-
-    // Check if expired
-    if (DateTime.now().isAfter(item.expiryTime)) {
-      await file.delete();
-      _cacheIndex.remove(item.cacheKey);
-      await _saveCacheIndex();
-      return false;
-    }
-
-    return true;
   }
 
   /// Load cache index from storage

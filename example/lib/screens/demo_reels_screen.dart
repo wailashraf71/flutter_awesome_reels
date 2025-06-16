@@ -169,7 +169,7 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
 class SampleData {
   static final List<ReelModel> basicReels = [
     ReelModel(
-      id: '2',
+      id: '4',
       videoSource: VideoSource(
           url:
           'https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd'),
@@ -189,8 +189,9 @@ class SampleData {
       views: 2500,
       location: 'Mountains',
     ),
+
     ReelModel(
-      id: '3',
+      id: '1',
       videoSource: VideoSource(
           url:
           'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'),
@@ -210,7 +211,7 @@ class SampleData {
       location: 'Hollywood',
     ),
     ReelModel(
-      id: '',
+      id: '2',
       videoSource: VideoSource(
           url:
           'https://moctobpltc-i.akamaihd.net/hls/live/571329/eight/playlist.m3u8'),
@@ -230,7 +231,7 @@ class SampleData {
       location: 'Hollywood',
     ),
     ReelModel(
-      id: '1',
+      id: '3',
       videoSource: VideoSource(
           url:
           'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4'),

@@ -468,7 +468,7 @@ class CircularReelProgressIndicator extends StatelessWidget {
                     color: Colors.black54,
                   ),
                   child: Icon(
-                    controller.isPlaying ? Icons.pause : Icons.play_arrow,
+                    controller.isPlaying.value ? Icons.pause : Icons.play_arrow,
                     color: config.textColor,
                     size: size * 0.4,
                   ),
