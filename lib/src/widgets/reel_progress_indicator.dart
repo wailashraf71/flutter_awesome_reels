@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
-import '../models/reel_model.dart';
-import '../models/reel_config.dart';
+
 import '../controllers/reel_controller.dart';
+import '../models/reel_config.dart';
+import '../models/reel_model.dart';
 import '../utils/reel_utils.dart';
 
-/// Widget that displays video progress indicator
+/// Perfect video progress indicator with seeking, thumbnails, and smooth animations
 class ReelProgressIndicator extends StatefulWidget {
   final ReelModel reel;
   final ReelConfig config;
@@ -20,11 +21,11 @@ class ReelProgressIndicator extends StatefulWidget {
     super.key,
     required this.reel,
     required this.config,
-    this.showThumb = false,
+    this.showThumb = true,
     this.showTime = false,
-    this.height = 3.0,
+    this.height = 4.0,
     this.onSeek,
-    this.showThumbnail = false,
+    this.showThumbnail = true,
   });
 
   @override
@@ -32,34 +33,70 @@ class ReelProgressIndicator extends StatefulWidget {
 }
 
 class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // Interaction state
   final RxBool _isDragging = false.obs;
   final RxnDouble _dragValue = RxnDouble();
+
+  // Thumbnail preview state
   final RxBool _showThumbnail = false.obs;
   final RxnDouble _thumbnailPosition = RxnDouble();
   final Rx<Duration> _thumbnailTime = Rx<Duration>(Duration.zero);
-  late AnimationController _heightAnimationController;
-  late Animation<double> _heightAnimation;
+
+  // Animation controllers
+  late AnimationController _scaleAnimationController;
+  late AnimationController _thumbAnimationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _thumbSizeAnimation;
+  late Animation<double> _trackHeightAnimation;
+
+  // Gesture tracking
+  bool _wasPlayingBeforeDrag = false;
 
   @override
   void initState() {
     super.initState();
-    _heightAnimationController = AnimationController(
+
+    // Scale animation for interaction feedback
+    _scaleAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _scaleAnimationController,
+      curve: Curves.easeOut,
+    ));
+
+    // Thumb size and track height animation
+    _thumbAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _heightAnimation = Tween<double>(
-      begin: widget.height.toDouble(),
-      end: (widget.height * 2.5).toDouble(),
+
+    _thumbSizeAnimation = Tween<double>(
+      begin: 12.0,
+      end: 20.0,
     ).animate(CurvedAnimation(
-      parent: _heightAnimationController,
-      curve: Curves.easeInOut,
+      parent: _thumbAnimationController,
+      curve: Curves.elasticOut,
+    ));
+
+    _trackHeightAnimation = Tween<double>(
+      begin: widget.height,
+      end: widget.height * 1.5,
+    ).animate(CurvedAnimation(
+      parent: _thumbAnimationController,
+      curve: Curves.easeOut,
     ));
   }
 
   @override
   void dispose() {
-    _heightAnimationController.dispose();
+    _scaleAnimationController.dispose();
+    _thumbAnimationController.dispose();
     super.dispose();
   }
 
@@ -86,32 +123,31 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
             return const SizedBox.shrink();
           }
 
-          final progress = _isDragging.value
-              ? (_dragValue.value ?? 0.0)
-              : position.inMilliseconds / duration.inMilliseconds;
+          // Calculate current progress
+          final actualProgress =
+              position.inMilliseconds / duration.inMilliseconds;
+          final displayProgress = _isDragging.value
+              ? (_dragValue.value ?? actualProgress)
+              : actualProgress;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Stack(
+            clipBehavior: Clip.none,
             children: [
               // Thumbnail preview
-              if (widget.showThumbnail &&
-                  _showThumbnail.value &&
-                  _thumbnailPosition.value != null)
-                _buildThumbnailPreview(
-                  videoController,
-                  _thumbnailPosition.value!,
-                  _thumbnailTime.value,
-                ),
-              // Progress bar
-              _buildProgressBar(
+              if (widget.showThumbnail && _showThumbnail.value)
+                _buildThumbnailPreview(),
+
+              // Main progress bar
+              _buildProgressTrack(
                 controller,
-                progress,
+                displayProgress,
                 duration,
                 position,
               ),
+
               // Time indicators
               if (widget.showTime) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 _buildTimeIndicators(position, duration),
               ],
             ],
@@ -121,188 +157,303 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
     });
   }
 
-  Widget _buildThumbnailPreview(
-    VideoPlayerController controller,
-    double position,
-    Duration time,
-  ) {
-    return Positioned(
-      bottom: widget.height + 8,
-      left: position - 60,
-      child: Container(
-        width: 120,
-        height: 68,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.white30),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            color: Colors.black54,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.play_circle_outline,
-                    color: widget.config.textColor,
-                    size: 24,
+  Widget _buildThumbnailPreview() {
+    return Obx(() {
+      if (!_showThumbnail.value || _thumbnailPosition.value == null) {
+        return const SizedBox.shrink();
+      }
+
+      final position = _thumbnailPosition.value!;
+      final time = _thumbnailTime.value;
+      final screenWidth = MediaQuery.of(context).size.width;
+
+      // Calculate safe left position to keep thumbnail on screen
+      final thumbnailWidth = 150.0;
+      final safeLeft = (position - thumbnailWidth / 2)
+          .clamp(16.0, screenWidth - thumbnailWidth - 16.0);
+
+      return Positioned(
+        bottom: 40, // Position above the progress bar
+        left: safeLeft,
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 150),
+          tween: Tween(begin: 0.0, end: 1.0),
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: 0.8 + (0.2 * value), // Animate in with scale
+              child: Opacity(
+                opacity: value,
+                child: Container(
+                  width: thumbnailWidth,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white30, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        spreadRadius: 3,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ReelUtils.formatDuration(time),
-                    style: TextStyle(
-                      color: widget.config.textColor,
-                      fontSize: 12,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Column(
+                      children: [
+                        // Video frame placeholder with better styling
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.grey.shade800,
+                                Colors.grey.shade900,
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.play_circle_outline,
+                                  color: Colors.white70,
+                                  size: 28,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Preview',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Time display with better styling
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(10),
+                              bottomRight: Radius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            ReelUtils.formatDuration(time),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildProgressBar(
+  Widget _buildProgressTrack(
     ReelController controller,
     double progress,
     Duration duration,
     Duration position,
   ) {
-    return Container(
-      color: Colors.transparent,
-      child: GestureDetector(
-        onTapDown: (details) {
-          final RenderBox box = context.findRenderObject() as RenderBox;
-          final localPosition = details.localPosition;
-          final width = box.size.width;
-          final tapPosition = (localPosition.dx / width).clamp(0.0, 1.0);
-
-          final newPosition = Duration(
-            milliseconds: (tapPosition * duration.inMilliseconds).round(),
-          );
-          controller.seekTo(newPosition);
-          if (widget.onSeek != null) {
-            widget.onSeek!(newPosition);
-          }
-        },
-        onHorizontalDragStart: (details) {
-          _isDragging.value = true;
-          _heightAnimationController.forward();
-          final RenderBox box = context.findRenderObject() as RenderBox;
-          final localPosition = details.localPosition;
-          final width = box.size.width;
-          final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
-          _dragValue.value = dragPosition;
-
-          if (widget.showThumbnail) {
-            _showThumbnail.value = true;
-            _thumbnailPosition.value = localPosition.dx;
-            _thumbnailTime.value = Duration(
-              milliseconds: (dragPosition * duration.inMilliseconds).round(),
-            );
-          }
-
-          controller.pause();
-        },
-        onHorizontalDragUpdate: (details) {
-          final RenderBox box = context.findRenderObject() as RenderBox;
-          final localPosition = details.localPosition;
-          final width = box.size.width;
-          final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
-          _dragValue.value = dragPosition;
-
-          if (widget.showThumbnail) {
-            _thumbnailPosition.value = localPosition.dx;
-            _thumbnailTime.value = Duration(
-              milliseconds: (dragPosition * duration.inMilliseconds).round(),
-            );
-          }
-        },
-        onHorizontalDragEnd: (details) {
-          final controller = Get.find<ReelController>();
-          final videoController = controller.currentVideoController;
-          if (videoController != null && _dragValue.value != null) {
-            final newPosition = Duration(
-              milliseconds:
-                  (_dragValue.value! * duration.inMilliseconds).round(),
-            );
-            controller.seekTo(newPosition);
-            if (widget.onSeek != null) {
-              widget.onSeek!(newPosition);
-            }
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (controller.wasPlayingBeforeSeek) {
-                controller.play();
-              }
-            });
-          }
-          _isDragging.value = false;
-          _dragValue.value = null;
-          _showThumbnail.value = false;
-          _thumbnailPosition.value = null;
-          _heightAnimationController.reverse();
-        },
-        child: AnimatedBuilder(
-          animation: _heightAnimation,
-          builder: (context, child) {
-            return Container(
-              height: _heightAnimation.value,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(_heightAnimation.value / 2),
-              ),
-              child: Stack(
-                children: [
-                  // Progress fill
-                  FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress.clamp(0.0, 1.0),
-                    child: Container(
+    return AnimatedBuilder(
+      animation: Listenable.merge(
+          [_scaleAnimation, _trackHeightAnimation, _thumbSizeAnimation]),
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            height: 50,
+            // Increased hit area for easier interaction
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            // More padding for touch
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              // Make entire area responsive
+              onTapDown: _handleTapDown,
+              onPanStart: _handlePanStart,
+              onPanUpdate: _handlePanUpdate,
+              onPanEnd: _handlePanEnd,
+              child: SizedBox(
+                height: 20, // Visual container height
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Background track
+                    Container(
+                      height: _trackHeightAnimation.value,
+                      width: double.infinity,
                       decoration: BoxDecoration(
-                        color: widget.config.progressColor ?? Colors.white,
-                        borderRadius:
-                            BorderRadius.circular(_heightAnimation.value / 2),
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        // Light grey background
+                        borderRadius: BorderRadius.circular(
+                            _trackHeightAnimation.value / 2),
                       ),
                     ),
-                  ),
 
-                  // Draggable thumb
-                  if (widget.showThumb)
-                    Positioned(
-                      left: progress.clamp(0.0, 1.0) *
-                              MediaQuery.of(context).size.width -
-                          (_isDragging.value ? 12 : 8),
-                      top: (_heightAnimation.value - 16) / 2,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: _isDragging.value ? 24 : 16,
-                        height: _isDragging.value ? 24 : 16,
-                        decoration: BoxDecoration(
-                          color: widget.config.progressColor ?? Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              spreadRadius: 1,
-                            ),
-                          ],
+                    // Active progress
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: progress.clamp(0.0, 1.0),
+                        child: Container(
+                          height: _trackHeightAnimation.value,
+                          decoration: BoxDecoration(
+                            color: widget.config.progressColor ?? Colors.white,
+                            borderRadius: BorderRadius.circular(
+                                _trackHeightAnimation.value / 2),
+                          ),
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+
+  // Gesture handlers
+  void _handleTapDown(TapDownDetails details) {
+    final controller = Get.find<ReelController>();
+    final videoController = controller.currentVideoController;
+    if (videoController == null) return;
+
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final localPosition = details.localPosition;
+    final width = box.size.width;
+    final tapPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+    final duration = videoController.value.duration;
+
+    final newPosition = Duration(
+      milliseconds: (tapPosition * duration.inMilliseconds).round(),
+    );
+
+    // Immediate seek on tap
+    controller.seekTo(newPosition);
+    if (widget.onSeek != null) {
+      widget.onSeek!(newPosition);
+    }
+
+    // Visual feedback
+    _scaleAnimationController.forward().then((_) {
+      _scaleAnimationController.reverse();
+    });
+  }
+
+  void _handlePanStart(DragStartDetails details) {
+    final controller = Get.find<ReelController>();
+    final videoController = controller.currentVideoController;
+    if (videoController == null) return;
+
+    // Store playback state
+    _wasPlayingBeforeDrag = controller.isPlaying.value;
+    if (_wasPlayingBeforeDrag) {
+      controller.pause();
+    }
+
+    // Start drag state
+    _isDragging.value = true;
+    _thumbAnimationController.forward();
+    _scaleAnimationController.forward();
+
+    // Calculate initial position
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final localPosition = details.localPosition;
+    final width = box.size.width;
+    final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+    _dragValue.value = dragPosition;
+
+    // Show thumbnail if enabled
+    if (widget.showThumbnail) {
+      _showThumbnail.value = true;
+      _thumbnailPosition.value = localPosition.dx;
+      final duration = videoController.value.duration;
+      _thumbnailTime.value = Duration(
+        milliseconds: (dragPosition * duration.inMilliseconds).round(),
+      );
+    }
+  }
+
+  void _handlePanUpdate(DragUpdateDetails details) {
+    final controller = Get.find<ReelController>();
+    final videoController = controller.currentVideoController;
+    if (videoController == null) return;
+
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final localPosition = details.localPosition;
+    final width = box.size.width;
+    final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+    _dragValue.value = dragPosition;
+
+    // Update thumbnail position
+    if (widget.showThumbnail && _showThumbnail.value) {
+      _thumbnailPosition.value = localPosition.dx;
+      final duration = videoController.value.duration;
+      _thumbnailTime.value = Duration(
+        milliseconds: (dragPosition * duration.inMilliseconds).round(),
+      );
+    }
+  }
+
+  void _handlePanEnd(DragEndDetails details) {
+    final controller = Get.find<ReelController>();
+    final videoController = controller.currentVideoController;
+
+    if (videoController != null && _dragValue.value != null) {
+      final duration = videoController.value.duration;
+      final newPosition = Duration(
+        milliseconds: (_dragValue.value! * duration.inMilliseconds).round(),
+      );
+
+      // Perform the actual seek
+      controller.seekTo(newPosition);
+      if (widget.onSeek != null) {
+        widget.onSeek!(newPosition);
+      }
+
+      // Resume playback if it was playing before
+      if (_wasPlayingBeforeDrag) {
+        Future.delayed(const Duration(milliseconds: 150), () {
+          controller.play();
+        });
+      }
+    }
+
+    // Reset drag state
+    _isDragging.value = false;
+    _dragValue.value = null;
+    _showThumbnail.value = false;
+    _thumbnailPosition.value = null;
+
+    // Animate back
+    _thumbAnimationController.reverse();
+    _scaleAnimationController.reverse();
   }
 
   Widget _buildTimeIndicators(Duration position, Duration duration) {
@@ -316,325 +467,18 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
             style: TextStyle(
               color: widget.config.textColor,
               fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
           Text(
             ReelUtils.formatDuration(duration),
             style: TextStyle(
-              color: widget.config.textColor,
+              color: widget.config.textColor.withValues(alpha: 0.7),
               fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Advanced progress indicator with buffering and chapters
-class AdvancedReelProgressIndicator extends StatefulWidget {
-  final ReelModel reel;
-  final ReelConfig config;
-  final List<Duration>? chapters;
-  final bool showBuffering;
-
-  const AdvancedReelProgressIndicator({
-    super.key,
-    required this.reel,
-    required this.config,
-    this.chapters,
-    this.showBuffering = true,
-  });
-
-  @override
-  State<AdvancedReelProgressIndicator> createState() =>
-      _AdvancedReelProgressIndicatorState();
-}
-
-class _AdvancedReelProgressIndicatorState
-    extends State<AdvancedReelProgressIndicator> {
-  final RxBool _isDragging = false.obs;
-  final RxnDouble _dragValue = RxnDouble();
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<ReelController>();
-    return Obx(() {
-      final videoController = controller.currentVideoController;
-      if (videoController == null) {
-        return _buildLoadingProgress();
-      }
-      return StreamBuilder<Duration>(
-        stream: controller.positionStream,
-        builder: (context, snapshot) {
-          final position = snapshot.data ?? Duration.zero;
-          final duration = videoController.value.duration;
-          final buffered = videoController.value.buffered;
-          if (duration.inMilliseconds <= 0) {
-            return _buildLoadingProgress();
-          }
-          final progress = _isDragging.value
-              ? (_dragValue.value ?? 0.0)
-              : position.inMilliseconds / duration.inMilliseconds;
-          return Container(
-            height: 20,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Background track
-                Container(
-                  height: 3,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(1.5),
-                    color: Colors.white.withAlpha(128),
-                  ),
-                ),
-                // Buffered progress
-                if (widget.showBuffering)
-                  _buildBufferedProgress(buffered, duration),
-                // Chapter markers
-                if (widget.chapters != null) _buildChapterMarkers(duration),
-                // Progress track
-                _buildProgressTrack(progress),
-                // Interactive slider
-                _buildInteractiveSlider(
-                  controller,
-                  progress,
-                  duration,
-                  position,
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    });
-  }
-
-  Widget _buildBufferedProgress(
-    List<DurationRange> buffered,
-    Duration duration,
-  ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        return Stack(
-          children: buffered.map((range) {
-            final startPercent =
-                range.start.inMilliseconds / duration.inMilliseconds;
-            final endPercent =
-                range.end.inMilliseconds / duration.inMilliseconds;
-            final rangeWidth = (endPercent - startPercent) * width;
-
-            return Positioned(
-              left: startPercent * width,
-              child: Container(
-                width: rangeWidth,
-                height: 3,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(1.5),
-                  color: Colors.white.withAlpha(128),
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildChapterMarkers(Duration duration) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        return Stack(
-          children: widget.chapters!.map((chapter) {
-            final percent = chapter.inMilliseconds / duration.inMilliseconds;
-
-            return Positioned(
-              left: percent * width - 1,
-              child: Container(
-                width: 2,
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(1),
-                  color: widget.config.accentColor,
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildProgressTrack(double progress) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FractionallySizedBox(
-        widthFactor: progress.clamp(0.0, 1.0),
-        child: Container(
-          height: 3,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(1.5),
-            color: widget.config.accentColor,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInteractiveSlider(
-    ReelController controller,
-    double progress,
-    Duration duration,
-    Duration position,
-  ) {
-    return Obx(() => SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 0,
-            thumbShape: RoundSliderThumbShape(
-              enabledThumbRadius: _isDragging.value ? 8.0 : 6.0,
-            ),
-            overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
-            activeTrackColor: Colors.transparent,
-            inactiveTrackColor: Colors.transparent,
-            thumbColor: widget.config.accentColor,
-            overlayColor: widget.config.accentColor.withAlpha(64),
-          ),
-          child: Slider(
-            value: progress.clamp(0.0, 1.0),
-            onChanged: (value) {
-              _isDragging.value = true;
-              _dragValue.value = value;
-            },
-            onChangeStart: (value) {
-              _isDragging.value = true;
-              _dragValue.value = value;
-              controller.pause();
-            },
-            onChangeEnd: (value) {
-              final newPosition = Duration(
-                milliseconds: (value * duration.inMilliseconds).round(),
-              );
-              controller.seekTo(newPosition);
-              _isDragging.value = false;
-              _dragValue.value = null;
-              // Resume playback after seeking
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (controller.wasPlayingBeforeSeek) {
-                  controller.play();
-                }
-              });
-            },
-          ),
-        ));
-  }
-
-  Widget _buildLoadingProgress() {
-    return Container(
-      height: 3,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(1.5),
-        color: Colors.white.withAlpha(128),
-      ),
-      child: LinearProgressIndicator(
-        backgroundColor: Colors.transparent,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          widget.config.accentColor.withAlpha(64),
-        ),
-      ),
-    );
-  }
-}
-
-/// Circular progress indicator for reels
-class CircularReelProgressIndicator extends StatelessWidget {
-  final ReelModel reel;
-  final ReelConfig config;
-  final double size;
-  final double strokeWidth;
-
-  const CircularReelProgressIndicator({
-    super.key,
-    required this.reel,
-    required this.config,
-    this.size = 60.0,
-    this.strokeWidth = 3.0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.find<ReelController>();
-    return Obx(() {
-      final videoController = controller.currentVideoController;
-      if (videoController == null) {
-        return _buildLoadingIndicator();
-      }
-      return StreamBuilder<Duration>(
-        stream: controller.positionStream,
-        builder: (context, snapshot) {
-          final position = snapshot.data ?? Duration.zero;
-          final duration = videoController.value.duration;
-          if (duration.inMilliseconds <= 0) {
-            return _buildLoadingIndicator();
-          }
-          final progress = position.inMilliseconds / duration.inMilliseconds;
-          return SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Background circle
-                CircularProgressIndicator(
-                  value: 1.0,
-                  strokeWidth: strokeWidth,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.white.withAlpha(128),
-                  ),
-                ),
-                // Progress circle
-                CircularProgressIndicator(
-                  value: progress.clamp(0.0, 1.0),
-                  strokeWidth: strokeWidth,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    config.accentColor,
-                  ),
-                ),
-                // Center content
-                Container(
-                  width: size - (strokeWidth * 4),
-                  height: size - (strokeWidth * 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black54,
-                  ),
-                  child: Icon(
-                    controller.isPlaying.value ? Icons.pause : Icons.play_arrow,
-                    color: config.textColor,
-                    size: size * 0.4,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    });
-  }
-
-  Widget _buildLoadingIndicator() {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CircularProgressIndicator(
-        strokeWidth: strokeWidth,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          config.accentColor.withAlpha(64),
-        ),
       ),
     );
   }
