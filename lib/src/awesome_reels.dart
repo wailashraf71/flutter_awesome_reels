@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'models/reel_model.dart';
-import 'models/reel_config.dart';
+
 import 'controllers/reel_controller.dart';
-import 'widgets/reel_video_player.dart';
+import 'models/reel_config.dart';
+import 'models/reel_model.dart';
 import 'widgets/reel_overlay.dart';
+import 'widgets/reel_video_player.dart';
 
 /// The main AwesomeReels widget for displaying vertical video reels
 class AwesomeReels extends StatefulWidget {
@@ -21,7 +22,10 @@ class AwesomeReels extends StatefulWidget {
   final void Function(int index, ReelModel reel)? onPageChanged;
 
   /// Callback when video tapped
-  final void Function(ReelModel reel, Duration position)? onVideoTapped;
+  final void Function(ReelModel reel, Duration position)? onTap;
+
+  /// Callback when video long pressed
+  final void Function(ReelModel reel, Duration position)? onLongPress;
 
   /// Callback when like button tapped
   final void Function(ReelModel reel, bool isLiked)? onLikeTapped;
@@ -75,7 +79,8 @@ class AwesomeReels extends StatefulWidget {
     this.onVideoCompleted,
     this.onVideoError,
     this.onPageChanged,
-    this.onVideoTapped,
+    this.onTap,
+    this.onLongPress,
     this.onLikeTapped,
     this.onCommentTapped,
     this.onShareTapped,
@@ -97,6 +102,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
 
   @override
   bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
@@ -203,14 +209,10 @@ class _AwesomeReelsState extends State<AwesomeReels>
       fit: StackFit.expand,
       children: [
         ReelVideoPlayer(
+          key: ValueKey('reel_video_${reel.id}'),
           reel: reel,
           controller: _controller,
           config: widget.config,
-          onTap: (position) {
-            if (widget.onVideoTapped != null) {
-              widget.onVideoTapped!(reel, position);
-            }
-          },
           errorBuilder: (context, reel, error) {
             if (widget.onVideoError != null) {
               widget.onVideoError!(reel, error);
@@ -227,11 +229,12 @@ class _AwesomeReelsState extends State<AwesomeReels>
             reel: reel,
             config: widget.config,
             controller: _controller,
-            onTap: () {
-              if (widget.onVideoTapped != null) {
-                widget.onVideoTapped!(reel, _controller.currentPosition.value);
-              }
-            },
+            onTap: widget.onTap != null
+                ? () => widget.onTap!(reel, _controller.currentPosition.value)
+                : null,
+            onLongPress: widget.onLongPress != null
+                ? () => widget.onLongPress!(reel, _controller.currentPosition.value)
+                : null,
             onLike: () => widget.onReelLiked?.call(reel),
             onShare: () => widget.onReelShared?.call(reel),
             onComment: () => widget.onReelCommented?.call(reel),
@@ -242,71 +245,7 @@ class _AwesomeReelsState extends State<AwesomeReels>
       ],
     );
   }
-}
 
-class ShimmerEffect extends StatefulWidget {
-  final Color baseColor;
-  final Color highlightColor;
-  final Widget child;
-  final Duration duration;
-
-  const ShimmerEffect({
-    Key? key,
-    required this.child,
-    this.baseColor = const Color(0xFFEEEEEE),
-    this.highlightColor = const Color(0xFFF5F5F5),
-    this.duration = const Duration(seconds: 2),
-  }) : super(key: key);
-
-  @override
-  State<ShimmerEffect> createState() => _ShimmerEffectState();
-}
-
-class _ShimmerEffectState extends State<ShimmerEffect>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final shimmerPosition = _controller.value * 2 - 1;
-        return ShaderMask(
-          shaderCallback: (rect) {
-            return LinearGradient(
-              colors: [
-                widget.baseColor,
-                widget.highlightColor,
-                widget.baseColor,
-              ],
-              stops: const [0.1, 0.5, 0.9],
-              begin: Alignment(-1 - shimmerPosition, 0),
-              end: Alignment(1 + shimmerPosition, 0),
-            ).createShader(rect);
-          },
-          child: widget.child,
-          blendMode: BlendMode.srcATop,
-        );
-      },
-      child: widget.child,
-    );
-  }
 }
 
 /// Extension methods for AwesomeReels
@@ -331,7 +270,7 @@ extension AwesomeReelsExtension on AwesomeReels {
       config: config,
       initialIndex: initialIndex,
       onPageChanged: onPageChanged,
-      onVideoTapped: onVideoTapped,
+      onTap: onVideoTapped,
     );
   }
 }

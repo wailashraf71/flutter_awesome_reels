@@ -12,9 +12,15 @@ class ReelController extends GetxController {
   PageController? _pageController;
 
   final RxList<ReelModel> _reelsList = <ReelModel>[].obs;
-  // Only ONE video controller at a time to prevent codec overload
+
+  // Keep track of active and preloaded controllers
   VideoPlayerController? _currentVideoController;
-  int _currentVideoIndex = -1; // Use index instead of ID
+  final Map<int, VideoPlayerController?> _preloadedControllers = {};
+  int _currentVideoIndex = -1;
+
+  // Track initialization state
+  final RxBool _isVideoInitializing = false.obs;
+  final Map<int, bool> _initializedVideoIndices = {};
 
   final RxInt _currentIndex = 0.obs;
   final RxBool _isInitialized = false.obs;
@@ -39,8 +45,8 @@ class ReelController extends GetxController {
   DateTime? _playStartTime;
   Duration _accumulatedPlayTime = Duration.zero;
 
-  // Add state tracking for video initialization
-  final RxBool _isVideoInitializing = false.obs;
+  // Last frame of the current video (used for smooth transitions)
+  final Rx<ImageProvider?> _lastVideoFrame = Rx<ImageProvider?>(null);
 
   ReelController({
     List<ReelModel>? reels,
@@ -78,6 +84,13 @@ class ReelController extends GetxController {
   RxDouble get pageScrollProgress => _pageScrollProgress;
   RxBool get canPlayNext => _canPlayNext;
   bool get isVideoInitializing => _isVideoInitializing.value;
+  Rx<ImageProvider?> get lastVideoFrame => _lastVideoFrame;
+
+  /// Check if a video at a specific index is already initialized
+  bool isVideoAlreadyInitialized(int index) {
+    return _initializedVideoIndices.containsKey(index) &&
+           _initializedVideoIndices[index] == true;
+  }
 
   /// Get current video controller (only one at a time)
   VideoPlayerController? get currentVideoController {
@@ -86,13 +99,18 @@ class ReelController extends GetxController {
     return _currentVideoController;
   }
 
-  /// Get video controller for specific reel (only current one available)
+  /// Get video controller for specific reel
   VideoPlayerController? getVideoControllerForReel(ReelModel reel) {
     final reelIndex = _reels.indexOf(reel);
-    if (reelIndex != -1 && _currentVideoIndex == reelIndex) {
+    if (reelIndex == -1) return null;
+
+    // Return the active controller if this is the current reel
+    if (_currentVideoIndex == reelIndex && _currentVideoController != null) {
       return _currentVideoController;
     }
-    return null;
+
+    // Return a preloaded controller if available
+    return _preloadedControllers[reelIndex];
   }
 
   /// Initialize the controller
@@ -116,11 +134,20 @@ class ReelController extends GetxController {
       _currentIndex.value = initialIndex.clamp(0, _reels.length - 1);
       _currentReel.value = _reels[_currentIndex.value];
 
+      // Reset initialization tracking
+      _initializedVideoIndices.clear();
+
+      // Clear any preloaded controllers
+      await _disposeAllControllers();
+
       // Initialize page controller
       _pageController = PageController(initialPage: _currentIndex.value);
 
       // Initialize current video
       await _initializeCurrentVideo();
+
+      // Preload adjacent videos for smoother transitions
+      _preloadAdjacentVideos(_currentIndex.value);
 
       _isInitialized.value = true;
       // Enable wakelock if needed
@@ -139,18 +166,58 @@ class ReelController extends GetxController {
     final currentReel = _currentReel.value;
     if (currentReel == null) return;
 
+    final currentIndex = _currentIndex.value;
+
+    // Check if this video is already preloaded
+    if (_preloadedControllers.containsKey(currentIndex) &&
+        _preloadedControllers[currentIndex] != null &&
+        _preloadedControllers[currentIndex]!.value.isInitialized) {
+
+      // Use the preloaded controller
+      debugPrint('Using preloaded controller for index $currentIndex');
+
+      // Dispose previous active controller
+      if (_currentVideoController != null && _currentVideoIndex != currentIndex) {
+        // Save current controller to preloaded cache before replacing
+        if (_currentVideoIndex >= 0 && _currentVideoIndex < _reels.length) {
+          _preloadedControllers[_currentVideoIndex] = _currentVideoController;
+        } else {
+          await _currentVideoController!.dispose();
+        }
+      }
+
+      // Activate the preloaded controller
+      _currentVideoController = _preloadedControllers[currentIndex];
+      _currentVideoIndex = currentIndex;
+      _initializedVideoIndices[currentIndex] = true;
+
+      // Remove from preloaded since it's now active
+      _preloadedControllers.remove(currentIndex);
+
+      await _startPlayback(currentReel);
+      return;
+    }
+
     try {
       _isVideoInitializing.value = true;
       _error.value = null;
 
-      // Dispose previous controller
-      await _disposeCurrentController();
+      // Save current controller to preloaded cache before replacing
+      if (_currentVideoController != null && _currentVideoIndex != currentIndex) {
+        if (_currentVideoIndex >= 0 && _currentVideoIndex < _reels.length) {
+          _preloadedControllers[_currentVideoIndex] = _currentVideoController;
+          _currentVideoController = null;
+        } else {
+          await _disposeCurrentController();
+        }
+      }
 
       // Create new controller
       final controller = await _createVideoController(currentReel);
       if (controller != null) {
         _currentVideoController = controller;
-        _currentVideoIndex = _currentIndex.value;
+        _currentVideoIndex = currentIndex;
+        _initializedVideoIndices[currentIndex] = true;
 
         await _startPlayback(currentReel);
       }
@@ -160,6 +227,41 @@ class ReelController extends GetxController {
     } finally {
       _isVideoInitializing.value = false;
     }
+  }
+
+  /// Preload adjacent videos for smoother transitions
+  Future<void> _preloadAdjacentVideos(int currentIndex) async {
+    // Preload next video if available
+    if (currentIndex < _reels.length - 1) {
+      final nextIndex = currentIndex + 1;
+      _preloadVideo(nextIndex);
+    }
+
+    // Preload previous video if available
+    if (currentIndex > 0) {
+      final prevIndex = currentIndex - 1;
+      _preloadVideo(prevIndex);
+    }
+  }
+
+  /// Dispose all controllers (active and preloaded)
+  Future<void> _disposeAllControllers() async {
+    // Dispose active controller
+    await _disposeCurrentController();
+
+    // Dispose all preloaded controllers
+    for (final controller in _preloadedControllers.values) {
+      if (controller != null) {
+        try {
+          await controller.pause();
+          await controller.dispose();
+        } catch (e) {
+          debugPrint('Error disposing preloaded controller: $e');
+        }
+      }
+    }
+
+    _preloadedControllers.clear();
   }
 
   /// Dispose current video controller
@@ -263,7 +365,34 @@ class ReelController extends GetxController {
     _currentIndex.value = index;
     _currentReel.value = _reels[index];
 
+    // Switch to the new video immediately - either preloaded or initialize new
     await _initializeCurrentVideo();
+
+    // Preload adjacent videos for smooth future transitions
+    _preloadAdjacentVideos(index);
+  }
+
+  /// Preload a video at a specific index without making it active
+  Future<void> _preloadVideo(int index) async {
+    if (index < 0 || index >= _reels.length ||
+        isVideoAlreadyInitialized(index) ||
+        _preloadedControllers.containsKey(index)) {
+      return;
+    }
+
+    try {
+      debugPrint('Preloading video at index $index');
+      final reel = _reels[index];
+      final controller = await _createVideoController(reel);
+
+      if (controller != null) {
+        _preloadedControllers[index] = controller;
+        _initializedVideoIndices[index] = true;
+        debugPrint('Successfully preloaded video at index $index');
+      }
+    } catch (e) {
+      debugPrint('Error preloading video at index $index: $e');
+    }
   }
 
   /// Play current video
@@ -414,6 +543,8 @@ class ReelController extends GetxController {
     final currentReel = _currentReel.value;
     if (currentReel != null) {
       clearError();
+      // Remove from initialized tracking to force a fresh init
+      _initializedVideoIndices.remove(_currentIndex.value);
       await _initializeCurrentVideo();
     }
   }
@@ -466,8 +597,8 @@ class ReelController extends GetxController {
     _isDisposed.value = true;
     _updateAccumulatedPlayTime();
 
-    // Dispose video controller
-    _disposeCurrentController();
+    // Dispose all controllers
+    _disposeAllControllers();
 
     // Dispose page controller
     _pageController?.dispose();

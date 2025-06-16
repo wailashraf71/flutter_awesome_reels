@@ -13,6 +13,7 @@ class ReelProgressIndicator extends StatefulWidget {
   final bool showThumb;
   final bool showTime;
   final double height;
+  final Function(Duration)? onSeek;
 
   const ReelProgressIndicator({
     super.key,
@@ -21,6 +22,7 @@ class ReelProgressIndicator extends StatefulWidget {
     this.showThumb = false,
     this.showTime = false,
     this.height = 3.0,
+    this.onSeek,
   });
 
   @override
@@ -148,6 +150,9 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
                 milliseconds: (value * duration.inMilliseconds).round(),
               );
               controller.seekTo(newPosition);
+              if (widget.onSeek != null) {
+                widget.onSeek!(newPosition);
+              }
               _isDragging.value = false;
               _dragValue.value = null;
               // Resume playback after seeking

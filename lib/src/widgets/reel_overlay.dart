@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../models/reel_model.dart';
-import '../models/reel_config.dart';
+
 import '../controllers/reel_controller.dart';
+import '../models/reel_config.dart';
+import '../models/reel_model.dart';
 import '../utils/reel_utils.dart';
 import 'reel_actions.dart';
 import 'reel_progress_indicator.dart';
@@ -12,6 +13,8 @@ class ReelOverlay extends StatefulWidget {
   final ReelModel reel;
   final ReelConfig config;
   final VoidCallback? onTap;
+
+  final VoidCallback? onLongPress;
   final VoidCallback? onLike;
   final VoidCallback? onShare;
   final VoidCallback? onComment;
@@ -25,6 +28,7 @@ class ReelOverlay extends StatefulWidget {
     required this.reel,
     required this.config,
     this.onTap,
+    this.onLongPress,
     this.onLike,
     this.onShare,
     this.onComment,
@@ -38,61 +42,85 @@ class ReelOverlay extends StatefulWidget {
   State<ReelOverlay> createState() => _ReelOverlayState();
 }
 
-class _ReelOverlayState extends State<ReelOverlay> {
-  void _showLikeAnimation() {
-    if (mounted) {
-      final overlay = Overlay.of(context);
-      late OverlayEntry entry;
-      entry = OverlayEntry(
-        builder: (context) => Center(
-          child: Icon(
-            Icons.favorite,
-            color: Colors.red,
-            size: 100,
-          ),
-        ),
-      );
-      overlay.insert(entry);
-      Future.delayed(const Duration(milliseconds: 500), () {
-        entry.remove();
-      });
+class _ReelOverlayState extends State<ReelOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _playPauseAnimationController;
+  late Animation<double> _playPauseAnimation;
+  final RxBool _showPlayPauseIcon = false.obs;
+  bool _wasPlayingBeforeLongPress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _playPauseAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _playPauseAnimation = CurvedAnimation(
+      parent: _playPauseAnimationController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _playPauseAnimationController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (widget.onTap != null) {
+      widget.onTap!();
+    } else {
+      _togglePlayPause();
     }
   }
 
-  Widget _buildLikeButton() {
-    final isLiked = widget.reel.isLiked;
-    return GestureDetector(
-      onTap: () {
-        widget.controller.toggleLike(widget.reel);
-        if (!isLiked) {
-          _showLikeAnimation();
-        }
-      },
-      child: Column(
-        children: [
-          Icon(
-            isLiked ? Icons.favorite : Icons.favorite_border,
-            color: isLiked ? Colors.red : widget.config.textColor,
-            size: 28,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.reel.likesCount.toString(),
-            style: TextStyle(
-              color: widget.config.textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
+  void _handleLongPressStart() {
+    _wasPlayingBeforeLongPress = widget.controller.isPlaying.value;
+    widget.controller.pause();
+  }
+
+  void _handleLongPressEnd() {
+    if (_wasPlayingBeforeLongPress) {
+      widget.controller.play();
+    }
+  }
+
+  void _togglePlayPause() {
+    if (widget.controller.isPlaying.value) {
+      widget.controller.pause();
+    } else {
+      widget.controller.play();
+    }
+    _showPlayPauseIcon.value = true;
+    _playPauseAnimationController.forward().then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _showPlayPauseIcon.value = false;
+        _playPauseAnimationController.reverse();
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() => GestureDetector(
-          onTap: widget.onTap,
+          onTap: _handleTap,
+          onLongPress: widget.onLongPress,
+          onLongPressStart: (details) {
+            if (widget.onLongPress != null) {
+              widget.onLongPress!();
+            } else {
+              _handleLongPressStart();
+            }
+          },
+          onLongPressEnd: (details) {
+            if (widget.onLongPress != null) {
+              widget.onLongPress!();
+            } else {
+              _handleLongPressEnd();
+            }
+          },
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -139,7 +167,9 @@ class _ReelOverlayState extends State<ReelOverlay> {
                     left: 0,
                     right: 0,
                     child: _buildBottomControls(context),
-                  ), // Loading indicator (only show if video controller exists but video not ready)
+                  ),
+
+                // Loading indicator
                 if (widget.controller.currentVideoController != null &&
                     !widget.controller.currentVideoController!.value
                         .isInitialized &&
@@ -187,25 +217,42 @@ class _ReelOverlayState extends State<ReelOverlay> {
                     ),
                   ),
 
-                // Progress indicator at bottom (always visible, no padding)
+                // Play/Pause icon animation
+                Obx(() => _showPlayPauseIcon.value
+                    ? Center(
+                        child: ScaleTransition(
+                          scale: _playPauseAnimation,
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              widget.controller.isPlaying.value
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: widget.config.textColor,
+                              size: 48,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink()),
+
+                // Progress indicator at bottom
                 Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+                  bottom: 20,
+                  left: widget.config.progressBarPadding,
+                  right: widget.config.progressBarPadding,
                   child: ReelProgressIndicator(
                     reel: widget.reel,
                     config: widget.config,
-                  ),
-                ),
-
-                // Like button
-                Positioned(
-                  right: 16,
-                  bottom: 100,
-                  child: Column(
-                    children: [
-                      _buildLikeButton(),
-                    ],
+                    onSeek: (position) {
+                      if (widget.config.onSeek != null) {
+                        widget.config.onSeek!(position);
+                      }
+                    },
                   ),
                 ),
               ],
@@ -403,7 +450,9 @@ class _ReelOverlayState extends State<ReelOverlay> {
           IconButton(
             onPressed: () => widget.controller.toggleMute(),
             icon: Icon(
-              widget.controller.isMuted.value ? Icons.volume_off : Icons.volume_up,
+              widget.controller.isMuted.value
+                  ? Icons.volume_off
+                  : Icons.volume_up,
               color: widget.config.textColor,
               size: 24,
             ),
