@@ -172,7 +172,7 @@ class ReelConfig {
     this.onPlay,
     this.onPause,
     this.onSeek,
-    this.progressBarPadding = 10.0,
+    this.progressBarPadding = 20.0,
   });
   ReelConfig copyWith({
     Color? backgroundColor,

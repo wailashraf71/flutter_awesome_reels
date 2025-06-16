@@ -135,128 +135,128 @@ class _ReelOverlayState extends State<ReelOverlay>
                 stops: const [0.0, 0.4, 0.7, 1.0],
               ),
             ),
-            child: Stack(
-              children: [
-                // Main content area
+            child: Stack(children: [
+              // Main content area
+              Positioned(
+                bottom: 80,
+                left: 16,
+                right: 80,
+                child: _buildUserInfo(context),
+              ),
+
+              // Actions on the right
+              Positioned(
+                bottom: 80,
+                right: 12,
+                child: ReelActions(
+                  reel: widget.reel,
+                  config: widget.config,
+                  onLike: widget.onLike,
+                  onShare: widget.onShare,
+                  onComment: widget.onComment,
+                  onFollow: widget.onFollow,
+                  onBlock: widget.onBlock,
+                ),
+              ),
+
+              // Bottom controls
+              if (widget.config.showBottomControls)
                 Positioned(
-                  bottom: 80,
-                  left: 16,
-                  right: 80,
-                  child: _buildUserInfo(context),
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomControls(context),
                 ),
 
-                // Actions on the right
-                Positioned(
-                  bottom: 80,
-                  right: 12,
-                  child: ReelActions(
-                    reel: widget.reel,
-                    config: widget.config,
-                    onLike: widget.onLike,
-                    onShare: widget.onShare,
-                    onComment: widget.onComment,
-                    onFollow: widget.onFollow,
-                    onBlock: widget.onBlock,
+              // Loading indicator
+              if (widget.controller.currentVideoController != null &&
+                  !widget
+                      .controller.currentVideoController!.value.isInitialized &&
+                  !widget.controller.hasError)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
 
-                // Bottom controls
-                if (widget.config.showBottomControls)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildBottomControls(context),
-                  ),
+              // Error overlay
+              if (widget.controller.hasError) _buildErrorOverlay(context),
 
-                // Loading indicator
-                if (widget.controller.currentVideoController != null &&
-                    !widget.controller.currentVideoController!.value
-                        .isInitialized &&
-                    !widget.controller.hasError)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+              // Buffering indicator
+              if (widget.controller.isBuffering.value)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-
-                // Error overlay
-                if (widget.controller.hasError) _buildErrorOverlay(context),
-
-                // Buffering indicator
-                if (widget.controller.isBuffering.value)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              widget.config.accentColor,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Buffering...',
-                            style: TextStyle(
-                              color: widget.config.textColor,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Play/Pause icon animation
-                Obx(() => _showPlayPauseIcon.value
-                    ? Center(
-                        child: ScaleTransition(
-                          scale: _playPauseAnimation,
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              widget.controller.isPlaying.value
-                                  ? Icons.pause
-                                  : Icons.play_arrow,
-                              color: widget.config.textColor,
-                              size: 48,
-                            ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            widget.config.accentColor,
                           ),
                         ),
-                      )
-                    : const SizedBox.shrink()),
-
-                // Progress indicator at bottom
-                Positioned(
-                  bottom: 20,
-                  left: widget.config.progressBarPadding,
-                  right: widget.config.progressBarPadding,
-                  child: ReelProgressIndicator(
-                    reel: widget.reel,
-                    config: widget.config,
-                    onSeek: (position) {
-                      if (widget.config.onSeek != null) {
-                        widget.config.onSeek!(position);
-                      }
-                    },
+                        const SizedBox(height: 8),
+                        Text(
+                          'Buffering...',
+                          style: TextStyle(
+                            color: widget.config.textColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+
+              // Play/Pause icon animation
+              Obx(() => _showPlayPauseIcon.value
+                  ? Center(
+                      child: ScaleTransition(
+                        scale: _playPauseAnimation,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            widget.controller.isPlaying.value
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            color: widget.config.textColor,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink()),
+
+              // Progress indicator at bottom
+              Positioned(
+                bottom: 30,
+                left: widget.config.progressBarPadding,
+                right: widget.config.progressBarPadding,
+                child: ReelProgressIndicator(
+                  reel: widget.reel,
+                  config: widget.config,
+                  showThumb: true,
+                  showThumbnail: true,
+                  onSeek: (position) {
+                    if (widget.config.onSeek != null) {
+                      widget.config.onSeek!(position);
+                    }
+                  },
+                ),
+              ),
+            ]),
           ),
         ));
   }
@@ -420,17 +420,6 @@ class _ReelOverlayState extends State<ReelOverlay>
               isPlaying ? Icons.pause : Icons.play_arrow,
               color: widget.config.textColor,
               size: 28,
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Progress bar
-          Expanded(
-            child: ReelProgressIndicator(
-              reel: widget.reel,
-              config: widget.config,
-              showThumb: true,
             ),
           ),
 

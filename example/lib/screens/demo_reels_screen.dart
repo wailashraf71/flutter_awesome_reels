@@ -189,8 +189,7 @@ class SampleData {
     ReelModel(
       id: '2',
       videoSource: VideoSource(
-          url:
-              'http://content.jwplatform.com/manifests/vM7nH0Kl.m3u8'),
+          url: 'http://amssamples.streaming.mediaservices.windows.net/634cd01c-6822-4630-8444-8dd6279f94c6/CaminandesLlamaDrama4K.ism/manifest(format=m3u8-aapl)'),
       user: const ReelUser(
         id: 'u3',
         username: 'charlie',

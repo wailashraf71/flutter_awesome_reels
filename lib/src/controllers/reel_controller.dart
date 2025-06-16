@@ -557,9 +557,8 @@ class ReelController extends GetxController {
 
   /// Get position stream (simplified)
   Stream<Duration> get positionStream => _currentPosition.stream;
-
-  /// Was playing before seek (simplified)
-  bool get wasPlayingBeforeSeek => false;
+  /// Was playing before seek
+  bool get wasPlayingBeforeSeek => _isPlaying.value;
 
   /// Refresh (no-op)
   void refresh() {

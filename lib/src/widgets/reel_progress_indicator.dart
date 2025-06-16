@@ -14,6 +14,7 @@ class ReelProgressIndicator extends StatefulWidget {
   final bool showTime;
   final double height;
   final Function(Duration)? onSeek;
+  final bool showThumbnail;
 
   const ReelProgressIndicator({
     super.key,
@@ -23,15 +24,44 @@ class ReelProgressIndicator extends StatefulWidget {
     this.showTime = false,
     this.height = 3.0,
     this.onSeek,
+    this.showThumbnail = false,
   });
 
   @override
   State<ReelProgressIndicator> createState() => _ReelProgressIndicatorState();
 }
 
-class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
+class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
+    with SingleTickerProviderStateMixin {
   final RxBool _isDragging = false.obs;
   final RxnDouble _dragValue = RxnDouble();
+  final RxBool _showThumbnail = false.obs;
+  final RxnDouble _thumbnailPosition = RxnDouble();
+  final Rx<Duration> _thumbnailTime = Rx<Duration>(Duration.zero);
+  late AnimationController _heightAnimationController;
+  late Animation<double> _heightAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _heightAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _heightAnimation = Tween<double>(
+      begin: widget.height.toDouble(),
+      end: (widget.height * 2.5).toDouble(),
+    ).animate(CurvedAnimation(
+      parent: _heightAnimationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _heightAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,8 +69,7 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
     return Obx(() {
       final videoController = controller.currentVideoController;
       if (videoController == null || !videoController.value.isInitialized) {
-        return const SizedBox
-            .shrink(); // Don't show progress bar if not initialized
+        return const SizedBox.shrink();
       }
 
       return ValueListenableBuilder<VideoPlayerValue>(
@@ -64,6 +93,15 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Thumbnail preview
+              if (widget.showThumbnail &&
+                  _showThumbnail.value &&
+                  _thumbnailPosition.value != null)
+                _buildThumbnailPreview(
+                  videoController,
+                  _thumbnailPosition.value!,
+                  _thumbnailTime.value,
+                ),
               // Progress bar
               _buildProgressBar(
                 controller,
@@ -83,110 +121,212 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator> {
     });
   }
 
-  Widget _buildProgressBar(
-    ReelController controller,
-    double progress,
-    Duration duration,
-    Duration position,
+  Widget _buildThumbnailPreview(
+    VideoPlayerController controller,
+    double position,
+    Duration time,
   ) {
-    if (widget.showThumb) {
-      return _buildSliderProgress(controller, progress, duration, position);
-    } else {
-      return _buildLinearProgress(progress);
-    }
-  }
-
-  Widget _buildLinearProgress(double progress) {
-    return Container(
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(widget.height / 2),
-      ),
-      child: FractionallySizedBox(
-        alignment: Alignment.centerLeft,
-        widthFactor: progress.clamp(0.0, 1.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.config.progressColor ?? Colors.white,
-            borderRadius: BorderRadius.circular(widget.height / 2),
+    return Positioned(
+      bottom: widget.height + 8,
+      left: position - 60,
+      child: Container(
+        width: 120,
+        height: 68,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.white30),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            color: Colors.black54,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.play_circle_outline,
+                    color: widget.config.textColor,
+                    size: 24,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ReelUtils.formatDuration(time),
+                    style: TextStyle(
+                      color: widget.config.textColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSliderProgress(
+  Widget _buildProgressBar(
     ReelController controller,
     double progress,
     Duration duration,
     Duration position,
   ) {
-    return Obx(() => SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: widget.height,
-            thumbShape: RoundSliderThumbShape(
-              enabledThumbRadius: _isDragging.value ? 8.0 : 6.0,
-            ),
-            overlayShape: RoundSliderOverlayShape(overlayRadius: 12.0),
-            activeTrackColor: widget.config.accentColor,
-            inactiveTrackColor: Colors.white.withAlpha(128),
-            thumbColor: widget.config.accentColor,
-            overlayColor: widget.config.accentColor.withAlpha(64),
-          ),
-          child: Slider(
-            value: progress.clamp(0.0, 1.0),
-            onChanged: (value) {
-              _isDragging.value = true;
-              _dragValue.value = value;
-            },
-            onChangeStart: (value) {
-              _isDragging.value = true;
-              _dragValue.value = value;
-              controller.pause();
-            },
-            onChangeEnd: (value) {
-              final newPosition = Duration(
-                milliseconds: (value * duration.inMilliseconds).round(),
-              );
-              controller.seekTo(newPosition);
-              if (widget.onSeek != null) {
-                widget.onSeek!(newPosition);
+    return Container(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTapDown: (details) {
+          final RenderBox box = context.findRenderObject() as RenderBox;
+          final localPosition = details.localPosition;
+          final width = box.size.width;
+          final tapPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+
+          final newPosition = Duration(
+            milliseconds: (tapPosition * duration.inMilliseconds).round(),
+          );
+          controller.seekTo(newPosition);
+          if (widget.onSeek != null) {
+            widget.onSeek!(newPosition);
+          }
+        },
+        onHorizontalDragStart: (details) {
+          _isDragging.value = true;
+          _heightAnimationController.forward();
+          final RenderBox box = context.findRenderObject() as RenderBox;
+          final localPosition = details.localPosition;
+          final width = box.size.width;
+          final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+          _dragValue.value = dragPosition;
+
+          if (widget.showThumbnail) {
+            _showThumbnail.value = true;
+            _thumbnailPosition.value = localPosition.dx;
+            _thumbnailTime.value = Duration(
+              milliseconds: (dragPosition * duration.inMilliseconds).round(),
+            );
+          }
+
+          controller.pause();
+        },
+        onHorizontalDragUpdate: (details) {
+          final RenderBox box = context.findRenderObject() as RenderBox;
+          final localPosition = details.localPosition;
+          final width = box.size.width;
+          final dragPosition = (localPosition.dx / width).clamp(0.0, 1.0);
+          _dragValue.value = dragPosition;
+
+          if (widget.showThumbnail) {
+            _thumbnailPosition.value = localPosition.dx;
+            _thumbnailTime.value = Duration(
+              milliseconds: (dragPosition * duration.inMilliseconds).round(),
+            );
+          }
+        },
+        onHorizontalDragEnd: (details) {
+          final controller = Get.find<ReelController>();
+          final videoController = controller.currentVideoController;
+          if (videoController != null && _dragValue.value != null) {
+            final newPosition = Duration(
+              milliseconds:
+                  (_dragValue.value! * duration.inMilliseconds).round(),
+            );
+            controller.seekTo(newPosition);
+            if (widget.onSeek != null) {
+              widget.onSeek!(newPosition);
+            }
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (controller.wasPlayingBeforeSeek) {
+                controller.play();
               }
-              _isDragging.value = false;
-              _dragValue.value = null;
-              // Resume playback after seeking
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (controller.wasPlayingBeforeSeek) {
-                  controller.play();
-                }
-              });
-            },
-          ),
-        ));
+            });
+          }
+          _isDragging.value = false;
+          _dragValue.value = null;
+          _showThumbnail.value = false;
+          _thumbnailPosition.value = null;
+          _heightAnimationController.reverse();
+        },
+        child: AnimatedBuilder(
+          animation: _heightAnimation,
+          builder: (context, child) {
+            return Container(
+              height: _heightAnimation.value,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(_heightAnimation.value / 2),
+              ),
+              child: Stack(
+                children: [
+                  // Progress fill
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: widget.config.progressColor ?? Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(_heightAnimation.value / 2),
+                      ),
+                    ),
+                  ),
+
+                  // Draggable thumb
+                  if (widget.showThumb)
+                    Positioned(
+                      left: progress.clamp(0.0, 1.0) *
+                              MediaQuery.of(context).size.width -
+                          (_isDragging.value ? 12 : 8),
+                      top: (_heightAnimation.value - 16) / 2,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: _isDragging.value ? 24 : 16,
+                        height: _isDragging.value ? 24 : 16,
+                        decoration: BoxDecoration(
+                          color: widget.config.progressColor ?? Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildTimeIndicators(Duration position, Duration duration) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          ReelUtils.formatDuration(position),
-          style: TextStyle(
-            color: widget.config.textColor.withAlpha(128),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            ReelUtils.formatDuration(position),
+            style: TextStyle(
+              color: widget.config.textColor,
+              fontSize: 12,
+            ),
           ),
-        ),
-        Text(
-          ReelUtils.formatDuration(duration),
-          style: TextStyle(
-            color: widget.config.textColor.withAlpha(128),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+          Text(
+            ReelUtils.formatDuration(duration),
+            style: TextStyle(
+              color: widget.config.textColor,
+              fontSize: 12,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
