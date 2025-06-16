@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:get/get.dart';
 import 'models/reel_model.dart';
 import 'models/reel_config.dart';
@@ -92,17 +91,16 @@ class AwesomeReels extends StatefulWidget {
 }
 
 class _AwesomeReelsState extends State<AwesomeReels>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   late ReelController _controller;
-  bool _isInitialized = false;
   bool _isExternalController = false;
 
   @override
   bool get wantKeepAlive => true;
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isExternalController = widget.controller != null;
     if (widget.controller != null) {
       _controller = widget.controller!;
@@ -111,6 +109,25 @@ class _AwesomeReelsState extends State<AwesomeReels>
       _controller = Get.put(ReelController(), permanent: true);
     }
     _initializeController();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _controller.setAppVisibility(true);
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        _controller.setAppVisibility(false);
+        break;
+      case AppLifecycleState.hidden:
+        _controller.setAppVisibility(false);
+        break;
+    }
   }
 
   @override
@@ -130,24 +147,14 @@ class _AwesomeReelsState extends State<AwesomeReels>
         config: widget.config,
         initialIndex: widget.initialIndex,
       );
-
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
     } catch (e) {
       debugPrint('Error initializing AwesomeReels: $e');
-      if (mounted) {
-        setState(() {
-          _isInitialized = true; // Still show UI even if init failed
-        });
-      }
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (!_isExternalController) {
       _controller.dispose();
     }
@@ -157,10 +164,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
-    if (!_isInitialized) {
-      return _buildLoadingWidget();
-    }
 
     return Container(
       color: widget.config.backgroundColor,
@@ -237,22 +240,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
             onCompleted: () => widget.onVideoCompleted?.call(reel),
           ),
       ],
-    );
-  }
-
-  Widget _buildLoadingWidget() {
-    if (widget.config.loadingWidgetBuilder != null) {
-      return widget.config.loadingWidgetBuilder!(context);
-    }
-
-    return Container(
-      color: widget.config.backgroundColor,
-      child: Center(
-        child: Lottie.asset(
-          'packages/flutter_awesome_reels/assets/reel-loading.json',
-          fit: BoxFit.contain,
-        ),
-      ),
     );
   }
 }

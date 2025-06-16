@@ -19,8 +19,8 @@ class DemoReelsScreen extends StatefulWidget {
 
 class _DemoReelsScreenState extends State<DemoReelsScreen> {
   late final ReelController _controller;
-  int _currentIndex = 0;
   List<ReelModel> _reels = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -30,17 +30,34 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
   }
 
   Future<void> _loadReels() async {
-    // Simulate loading reels from an API
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
+    try {
+      // Use provided reels or create sample data
       _reels = widget.reels ?? SampleData.basicReels;
-    });
 
-    // Initialize controller with reels
-    await _controller.initialize(
-      reels: _reels,
-      config: widget.config ?? ReelConfig(),
-    );
+      if (_reels.isNotEmpty) {
+        // Initialize controller with reels
+        await _controller.initialize(
+          reels: _reels,
+          config: widget.config ?? ReelConfig(),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading reels: $e');
+      // Use sample data as fallback
+      _reels = SampleData.basicReels;
+      if (_reels.isNotEmpty) {
+        await _controller.initialize(
+          reels: _reels,
+          config: widget.config ?? ReelConfig(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -60,48 +77,48 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _reels.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : AwesomeReels(
-              reels: _reels,
-              controller: _controller,
-              config: widget.config?.copyWith(
-                    showDownloadButton: false,
-                    enablePullToRefresh: true,
-                  ) ??
-                  ReelConfig(
-                    showDownloadButton: false,
-                    enablePullToRefresh: true,
-                  ),
-              onReelChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              onReelLiked: (reel) {
-                _showSnackBar(
-                    '${reel.isLiked ? 'Liked' : 'Unliked'} ${reel.user?.displayName}\'s reel');
-              },
-              onReelShared: (reel) {
-                _showSnackBar('Shared ${reel.user?.displayName}\'s reel');
-              },
-              onReelCommented: (reel) {
-                _showCommentDialog(reel);
-              },
-              onUserFollowed: (user) {
-                _showSnackBar(
-                    '${user.isFollowing ? 'Following' : 'Unfollowed'} ${user.displayName}');
-              },
-              onUserBlocked: (user) {
-                _showSnackBar('Blocked ${user.displayName}');
-              },
-              onVideoCompleted: (reel) {
-                debugPrint('Video completed: ${reel.id}');
-              },
-              onVideoError: (reel, error) {
-                _showSnackBar('Error playing video: $error');
-              },
-            ),
+      body: _isLoading
+          ? const Center(child: Text('Loading...'))
+          : _reels.isEmpty
+              ? const Center(child: Text('No reels available'))
+              : AwesomeReels(
+                  reels: _reels,
+                  controller: _controller,
+                  config: widget.config?.copyWith(
+                        showDownloadButton: false,
+                        enablePullToRefresh: true,
+                      ) ??
+                      ReelConfig(
+                        showDownloadButton: false,
+                        enablePullToRefresh: true,
+                      ),
+                  onReelChanged: (index) {
+                    debugPrint('Reel changed to index: $index');
+                  },
+                  onReelLiked: (reel) {
+                    _showSnackBar(
+                        '${reel.isLiked ? 'Liked' : 'Unliked'} ${reel.user?.displayName}\'s reel');
+                  },
+                  onReelShared: (reel) {
+                    _showSnackBar('Shared ${reel.user?.displayName}\'s reel');
+                  },
+                  onReelCommented: (reel) {
+                    _showCommentDialog(reel);
+                  },
+                  onUserFollowed: (user) {
+                    _showSnackBar(
+                        '${user.isFollowing ? 'Following' : 'Unfollowed'} ${user.displayName}');
+                  },
+                  onUserBlocked: (user) {
+                    _showSnackBar('Blocked ${user.displayName}');
+                  },
+                  onVideoCompleted: (reel) {
+                    debugPrint('Video completed: ${reel.id}');
+                  },
+                  onVideoError: (reel, error) {
+                    _showSnackBar('Error playing video: $error');
+                  },
+                ),
     );
   }
 
@@ -152,32 +169,10 @@ class _DemoReelsScreenState extends State<DemoReelsScreen> {
 class SampleData {
   static final List<ReelModel> basicReels = [
     ReelModel(
-      id: '1',
-      videoSource: VideoSource(
-        url:
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      ),
-      user: const ReelUser(
-        id: 'u1',
-        username: 'alice',
-        displayName: 'Alice in Wonderland',
-      ),
-      likesCount: 120,
-      commentsCount: 15,
-      sharesCount: 5,
-      tags: ['fun', 'bunny'],
-      audio: const ReelAudio(title: 'Sample Music'),
-      duration: const Duration(seconds: 10),
-      isLiked: false,
-      views: 1000,
-      location: 'Wonderland',
-    ),
-    ReelModel(
       id: '2',
       videoSource: VideoSource(
-        url:
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      ),
+          url:
+          'https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd'),
       user: const ReelUser(
         id: 'u2',
         username: 'bob',
@@ -197,9 +192,8 @@ class SampleData {
     ReelModel(
       id: '3',
       videoSource: VideoSource(
-        url:
-            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      ),
+          url:
+          'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'),
       user: const ReelUser(
         id: 'u3',
         username: 'charlie',
@@ -214,6 +208,46 @@ class SampleData {
       isLiked: false,
       views: 5000,
       location: 'Hollywood',
+    ),
+    ReelModel(
+      id: '',
+      videoSource: VideoSource(
+          url:
+          'https://moctobpltc-i.akamaihd.net/hls/live/571329/eight/playlist.m3u8'),
+      user: const ReelUser(
+        id: 'u3',
+        username: 'charlie',
+        displayName: 'Charlie Chaplin',
+      ),
+      likesCount: 300,
+      commentsCount: 45,
+      sharesCount: 20,
+      tags: ['comedy', 'classic'],
+      audio: const ReelAudio(title: 'Classic Comedy'),
+      duration: const Duration(seconds: 15),
+      isLiked: false,
+      views: 5000,
+      location: 'Hollywood',
+    ),
+    ReelModel(
+      id: '1',
+      videoSource: VideoSource(
+          url:
+          'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4'),
+      user: const ReelUser(
+        id: 'u1',
+        username: 'alice',
+        displayName: 'Alice in Wonderland',
+      ),
+      likesCount: 120,
+      commentsCount: 15,
+      sharesCount: 5,
+      tags: ['fun', 'bunny'],
+      audio: const ReelAudio(title: 'Sample Music'),
+      duration: const Duration(seconds: 10),
+      isLiked: false,
+      views: 1000,
+      location: 'Wonderland',
     ),
   ];
 }

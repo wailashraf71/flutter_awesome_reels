@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../models/reel_model.dart';
@@ -44,16 +43,18 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
     _initializeVideo();
   }
 
+  /// Initialize video with proper error handling
   Future<void> _initializeVideo() async {
     if (_isInitialized) return;
 
-    final controller =
-        widget.controller.getVideoControllerForReel(widget.reel.id);
-    if (controller == null) {
+    try {
       await widget.controller.initializeVideoForReel(widget.reel.id);
+      _isInitialized = true;
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Failed to initialize video for reel ${widget.reel.id}: $e');
+      if (mounted) setState(() {});
     }
-    _isInitialized = true;
-    if (mounted) setState(() {});
   }
 
   @override
@@ -85,21 +86,28 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
 
   Widget _buildVideoContent() {
     return Obx(() {
-      if (_showPlayPauseIcon.value) {
-        return const SizedBox.shrink();
+      if (!_isVisible.value) {
+        return Container(
+          color: Colors.black,
+          child: widget.loadingBuilder?.call(context, widget.reel) ??
+              const Center(
+                child: CircularProgressIndicator(),
+              ),
+        );
       }
-
       final controller =
           widget.controller.getVideoControllerForReel(widget.reel.id);
 
-      if (controller == null) {
-        return widget.loadingBuilder?.call(context, widget.reel) ??
-            const Center(child: CircularProgressIndicator());
-      }
-
-      if (!controller.value.isInitialized || controller.value.isBuffering) {
-        return widget.loadingBuilder?.call(context, widget.reel) ??
-            const Center(child: CircularProgressIndicator());
+      if (controller == null || !controller.value.isInitialized) {
+        return Container(
+          color: Colors.black,
+          child: const Center(
+            child: Text(
+              'Loading...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
       }
 
       if (controller.value.hasError) {
@@ -110,8 +118,8 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       return FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: controller.value.size?.width ?? 0,
-          height: controller.value.size?.height ?? 0,
+          width: controller.value.size.width,
+          height: controller.value.size.height,
           child: VideoPlayer(controller),
         ),
       );
@@ -158,11 +166,12 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () {
-                // Retry loading the video
-                // widget.controller.retryCurrentVideo();
+              onPressed: () async {
+                setState(() => _isInitialized = false);
+                await widget.controller.retry();
+                await _initializeVideo();
               },
-              child: Text('Retry'),
+              child: const Text('Retry'),
             ),
           ],
         ),
