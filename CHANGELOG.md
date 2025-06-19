@@ -1,5 +1,10 @@
 ## 0.0.3
 
+### ⚠️ Breaking Changes
+* **Multi-Format Video Support**: Plugin now supports HLS, MPEG-DASH, and MP4 video sources. This may require changes to your video URLs and backend delivery.
+* **New Event Callbacks**: Added `onPress` and `onLongPress` event callbacks for advanced interaction handling. Update your widget usage to handle these events if needed.
+
+
 ### 🎯 Major Progress Bar Overhaul
 * **Perfect Seeking Logic**: Complete redesign of video seeking functionality
   - Tap anywhere on progress bar for instant seeking
