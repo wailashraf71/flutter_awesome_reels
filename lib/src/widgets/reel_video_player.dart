@@ -6,6 +6,7 @@ import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
 import 'package:get/get.dart';
 
+
 /// Instagram-like video player widget for reels
 class ReelVideoPlayer extends StatefulWidget {
   final ReelModel reel;
