@@ -63,7 +63,6 @@ class ReelService {
   // Mock data methods
   List<ReelModel> _getMockReels(int page, int limit) {
     final startIndex = (page - 1) * limit;
-    final endIndex = startIndex + limit;
 
     return List.generate(
       limit,

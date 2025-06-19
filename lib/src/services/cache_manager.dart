@@ -30,7 +30,6 @@ class CacheManager {
 
   // In-memory cache for recently used files (fast access)
   final Map<String, String> _memoryFileCache = {};
-  final int _maxMemoryFiles = 10;
 
   /// Initialize the cache manager
   Future<void> initialize() async {
