@@ -377,74 +377,6 @@ class CacheManager {
     _controllerAccessTimes.remove(oldest);
   }
 
-  /// Download and cache a video file
-  Future<String?> _downloadAndCacheFile(String url) async {
-    final cacheKey = _generateCacheKey(url);
-
-    // Check if already downloading
-    if (_downloadFutures.containsKey(cacheKey)) {
-      return _downloadFutures[cacheKey];
-    }
-
-    // Check if already cached
-    if (_cacheIndex.containsKey(cacheKey)) {
-      final item = _cacheIndex[cacheKey]!;
-      if (!item.isExpired) {
-        return item.filePath;
-      }
-    }
-
-    // Start download
-    final downloadFuture = _downloadFile(url);
-    _downloadFutures[cacheKey] = downloadFuture;
-
-    try {
-      final filePath = await downloadFuture;
-      if (filePath != null) {
-        final file = File(filePath);
-        final fileSize = await file.length();
-        final now = DateTime.now();
-        await _addToCacheIndex(CacheItem(
-          cacheKey: cacheKey,
-          filePath: filePath,
-          url: url,
-          createdAt: now,
-          fileSize: fileSize,
-          lastAccessTime: now,
-          expiryTime: now.add(const Duration(days: 7)),
-        ));
-      }
-      return filePath;
-    } finally {
-      _downloadFutures.remove(cacheKey);
-    }
-  }
-
-  /// Download a file to cache
-  Future<String?> _downloadFile(String url) async {
-    try {
-      final response = await _dio.get(
-        url,
-        options: Options(
-          responseType: ResponseType.bytes,
-          followRedirects: true,
-          validateStatus: (status) => status! < 500,
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final fileName = _generateFileName(url);
-        final file = File('${_cacheDirectory.path}/$fileName');
-        await file.writeAsBytes(response.data);
-        return file.path;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error downloading file: $e');
-      return null;
-    }
-  }
-
   /// Add to cache index and evict if over size
   Future<void> _addToCacheIndex(CacheItem cacheItem) async {
     _cacheIndex[cacheItem.cacheKey] = cacheItem;
@@ -478,16 +410,6 @@ class CacheManager {
     await _saveCacheIndex();
   }
 
-  void _addToMemoryCache(String cacheKey, String filePath) {
-    _memoryFileCache[cacheKey] = filePath;
-    if (_memoryFileCache.length > _maxMemoryFiles) {
-      // Remove oldest
-      final oldest = _memoryFileCache.keys.first;
-      _memoryFileCache.remove(oldest);
-    }
-  }
-
-  // Helper to create controller from file
   dynamic _createControllerFromFile(String filePath) {
     return VideoPlayerController.file(File(filePath));
   }
