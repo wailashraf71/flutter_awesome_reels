@@ -1,3 +1,7 @@
+## 0.0.4
+
+* Updated README.md to reflect new features and usage examples
+
 ## 0.0.3
 
 ### ⚠️ Breaking Changes

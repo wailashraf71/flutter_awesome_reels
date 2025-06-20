@@ -2,6 +2,9 @@
 
 A powerful and feature-rich Flutter package for creating Instagram/TikTok-like video reels with advanced streaming support including HLS, DASH, and MP4 formats.
 
+![Flutter Awesome Reels Preview](preview.png)
+
+
 ## ⚠️ Breaking Changes
 - **Multi-Format Video Support**: Now supports HLS, MPEG-DASH, and MP4 video sources. Update your video URLs and backend delivery as needed.
 - **New Event Callbacks**: Added `onPress` and `onLongPress` event callbacks for advanced interaction handling. Update your widget usage to handle these events if needed.
