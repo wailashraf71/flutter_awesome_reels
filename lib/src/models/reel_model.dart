@@ -1,4 +1,4 @@
-/// Represents a single reel item with all its metadata
+// Represents a single reel item with all its metadata
 
 /// Enum for video streaming formats
 enum VideoFormat {
@@ -308,7 +308,7 @@ class ReelModel {
         );
 
   /// Get the effective video URL (backward compatibility)
-  String get effectiveVideoUrl => videoSource?.url ?? videoUrl!;
+  String get effectiveVideoUrl => videoSource?.url ?? (videoUrl ?? '');
 
   /// Get the video format
   VideoFormat get videoFormat => videoSource?.format ?? VideoFormat.mp4;

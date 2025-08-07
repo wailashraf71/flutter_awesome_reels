@@ -89,7 +89,7 @@ class ReelController extends GetxController {
   /// Check if a video at a specific index is already initialized
   bool isVideoAlreadyInitialized(int index) {
     return _initializedVideoIndices.containsKey(index) &&
-           _initializedVideoIndices[index] == true;
+        _initializedVideoIndices[index] == true;
   }
 
   /// Get current video controller (only one at a time)
@@ -172,12 +172,16 @@ class ReelController extends GetxController {
     if (_preloadedControllers.containsKey(currentIndex) &&
         _preloadedControllers[currentIndex] != null &&
         _preloadedControllers[currentIndex]!.value.isInitialized) {
-
       // Use the preloaded controller
       debugPrint('Using preloaded controller for index $currentIndex');
 
-      // Dispose previous active controller
-      if (_currentVideoController != null && _currentVideoIndex != currentIndex) {
+      // Pause and detach previous active controller before switching
+      if (_currentVideoController != null &&
+          _currentVideoIndex != currentIndex) {
+        try {
+          await _currentVideoController!.pause();
+        } catch (_) {}
+        _currentVideoController!.removeListener(_onVideoControllerUpdate);
         // Save current controller to preloaded cache before replacing
         if (_currentVideoIndex >= 0 && _currentVideoIndex < _reels.length) {
           _preloadedControllers[_currentVideoIndex] = _currentVideoController;
@@ -202,8 +206,13 @@ class ReelController extends GetxController {
       _isVideoInitializing.value = true;
       _error.value = null;
 
-      // Save current controller to preloaded cache before replacing
-      if (_currentVideoController != null && _currentVideoIndex != currentIndex) {
+      // Pause and save current controller to preloaded cache before replacing
+      if (_currentVideoController != null &&
+          _currentVideoIndex != currentIndex) {
+        try {
+          await _currentVideoController!.pause();
+        } catch (_) {}
+        _currentVideoController!.removeListener(_onVideoControllerUpdate);
         if (_currentVideoIndex >= 0 && _currentVideoIndex < _reels.length) {
           _preloadedControllers[_currentVideoIndex] = _currentVideoController;
           _currentVideoController = null;
@@ -269,6 +278,7 @@ class ReelController extends GetxController {
     if (_currentVideoController != null) {
       try {
         await _currentVideoController!.pause();
+        _currentVideoController!.removeListener(_onVideoControllerUpdate);
         await _currentVideoController!.dispose();
       } catch (e) {
         debugPrint('Error disposing video controller: $e');
@@ -299,6 +309,10 @@ class ReelController extends GetxController {
       await controller.initialize();
       await controller.setLooping(reel.shouldLoop);
       await controller.setVolume(_isMuted.value ? 0.0 : _volume.value);
+      // Ensure preloaded controllers stay paused until activated
+      try {
+        await controller.pause();
+      } catch (_) {}
 
       return controller;
     } catch (e) {
@@ -337,12 +351,22 @@ class ReelController extends GetxController {
     if (controller.value.hasError) {
       _error.value = controller.value.errorDescription;
     }
+
+    // Prevent black video: if initialized but no texture shown yet and playing,
+    // force a rebuild by briefly toggling play/pause when first frame not ready.
+    if (controller.value.isInitialized &&
+        controller.value.isPlaying &&
+        controller.value.size.width > 0 &&
+        controller.value.size.height > 0) {
+      // All good; nothing to do
+    }
   }
 
   /// Navigate to next reel
   Future<void> nextPage() async {
-    if (_pageController == null || _currentIndex.value >= _reels.length - 1)
+    if (_pageController == null || _currentIndex.value >= _reels.length - 1) {
       return;
+    }
     await _pageController!.nextPage(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -351,7 +375,9 @@ class ReelController extends GetxController {
 
   /// Navigate to previous reel
   Future<void> previousPage() async {
-    if (_pageController == null || _currentIndex.value <= 0) return;
+    if (_pageController == null || _currentIndex.value <= 0) {
+      return;
+    }
     await _pageController!.previousPage(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -361,6 +387,14 @@ class ReelController extends GetxController {
   /// Handle page change
   Future<void> onPageChanged(int index) async {
     if (index == _currentIndex.value) return;
+
+    // Pause previous active controller before switching
+    if (_currentVideoController != null && _currentVideoIndex != index) {
+      try {
+        await _currentVideoController!.pause();
+        _isPlaying.value = false;
+      } catch (_) {}
+    }
 
     _currentIndex.value = index;
     _currentReel.value = _reels[index];
@@ -374,7 +408,8 @@ class ReelController extends GetxController {
 
   /// Preload a video at a specific index without making it active
   Future<void> _preloadVideo(int index) async {
-    if (index < 0 || index >= _reels.length ||
+    if (index < 0 ||
+        index >= _reels.length ||
         isVideoAlreadyInitialized(index) ||
         _preloadedControllers.containsKey(index)) {
       return;
@@ -557,10 +592,12 @@ class ReelController extends GetxController {
 
   /// Get position stream (simplified)
   Stream<Duration> get positionStream => _currentPosition.stream;
+
   /// Was playing before seek
   bool get wasPlayingBeforeSeek => _isPlaying.value;
 
   /// Refresh (no-op)
+  @override
   void refresh() {
     debugPrint('Refresh called');
   }

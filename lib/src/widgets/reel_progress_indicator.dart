@@ -320,7 +320,7 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
                         child: Container(
                           height: _trackHeightAnimation.value,
                           decoration: BoxDecoration(
-                            color: widget.config.progressColor ?? Colors.white,
+                            color: widget.config.progressColor,
                             borderRadius: BorderRadius.circular(
                                 _trackHeightAnimation.value / 2),
                           ),
@@ -336,7 +336,6 @@ class _ReelProgressIndicatorState extends State<ReelProgressIndicator>
       },
     );
   }
-
 
   // Gesture handlers
   void _handleTapDown(TapDownDetails details) {

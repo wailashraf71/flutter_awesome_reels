@@ -35,9 +35,7 @@ class ReelActions extends StatefulWidget {
 
 class _ReelActionsState extends State<ReelActions>
     with TickerProviderStateMixin {
-  late AnimationController _likeAnimationController;
   late AnimationController _pulseAnimationController;
-  late Animation<double> _likeAnimation;
   late Animation<double> _pulseAnimation;
   bool _isDisposed = false;
 
@@ -48,23 +46,10 @@ class _ReelActionsState extends State<ReelActions>
   }
 
   void _setupAnimations() {
-    _likeAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
     _pulseAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-
-    _likeAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.3,
-    ).animate(CurvedAnimation(
-      parent: _likeAnimationController,
-      curve: Curves.elasticOut,
-    ));
 
     _pulseAnimation = Tween<double>(
       begin: 1.0,
@@ -78,7 +63,6 @@ class _ReelActionsState extends State<ReelActions>
   @override
   void dispose() {
     _isDisposed = true;
-    _likeAnimationController.dispose();
     _pulseAnimationController.dispose();
     super.dispose();
   }
@@ -259,13 +243,8 @@ class _ReelActionsState extends State<ReelActions>
   void _handleLike(ReelController controller) {
     controller.toggleLike(widget.reel);
 
-    if (!widget.reel.isLiked) {
-      if (mounted) {
-        _likeAnimationController.forward().then((_) {
-          if (mounted) _likeAnimationController.reverse();
-        });
-        _showFloatingHeart();
-      }
+    if (!widget.reel.isLiked && mounted) {
+      _showFloatingHeart();
     }
     if (widget.onLike != null) widget.onLike!();
   }
@@ -286,7 +265,8 @@ class _ReelActionsState extends State<ReelActions>
       widget.config.onShareTap!(widget.reel);
     } else {
       // Default share implementation - can be customized by the app
-      debugPrint('Sharing reel: ${widget.reel.videoUrl}');
+      final url = widget.reel.videoSource?.url ?? widget.reel.videoUrl;
+      debugPrint('Sharing reel: $url');
     }
     if (widget.onShare != null) widget.onShare!();
   }
@@ -390,7 +370,7 @@ class _ReelActionsState extends State<ReelActions>
           builder: (context, scrollController) {
             return Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
+                color: Colors.blueGrey[900],
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),

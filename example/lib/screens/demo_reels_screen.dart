@@ -170,7 +170,7 @@ class SampleData {
       id: '1',
       videoSource: VideoSource(
           url:
-              'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'),
+              'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4'),
       user: const ReelUser(
         id: 'u3',
         username: 'charlie',
@@ -190,7 +190,7 @@ class SampleData {
       id: '3',
       videoSource: VideoSource(
           url:
-              'https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4'),
+              'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8'),
       user: const ReelUser(
         id: 'u1',
         username: 'alice',

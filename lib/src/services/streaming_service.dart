@@ -35,7 +35,7 @@ class StreamingService {
 
       // Check cache first
       if (config.enableCaching) {
-        final cachedPath = await CacheManager.instance.getCachedFilePath(url);
+        final cachedPath = CacheManager.instance.getCachedFilePath(url);
         if (cachedPath != null) {
           final controller = VideoPlayerController.file(File(cachedPath));
           await _initializeController(controller, reel, config);

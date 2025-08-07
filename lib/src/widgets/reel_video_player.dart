@@ -6,7 +6,6 @@ import '../models/reel_config.dart';
 import '../controllers/reel_controller.dart';
 import 'package:get/get.dart';
 
-
 /// Instagram-like video player widget for reels
 class ReelVideoPlayer extends StatefulWidget {
   final ReelModel reel;
@@ -31,9 +30,7 @@ class ReelVideoPlayer extends StatefulWidget {
 
 class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
   final RxBool _isVisible = false.obs;
-  final RxBool _showPlayPauseIcon = false.obs;
-  final RxBool _isLongPressing = false.obs;
-  bool _wasPlayingBeforeLongPress = false;
+  // Unused fields removed to satisfy lints
   bool _isInitialized = false;
   bool _isFirstLoad = true;
 
@@ -41,6 +38,18 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
   void initState() {
     super.initState();
     _initializeVideo();
+    // Ensure we react to controller page changes by listening to current index
+    ever<int>(widget.controller.currentIndex, (idx) {
+      // If this reel is not the active one, make sure it is not playing
+      if (!widget.controller.isReelActive(widget.reel)) {
+        final vc = widget.controller.getVideoControllerForReel(widget.reel);
+        if (vc != null) {
+          try {
+            vc.pause();
+          } catch (_) {}
+        }
+      }
+    });
   }
 
   /// Initialize video with proper error handling
@@ -100,12 +109,15 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
           widget.controller.isVideoAlreadyInitialized(reelIndex);
 
       // Only show initializing on first load, not for switching between videos
-      if (widget.controller.isVideoInitializing && _isFirstLoad && !isAlreadyInitialized) {
+      if (widget.controller.isVideoInitializing &&
+          _isFirstLoad &&
+          !isAlreadyInitialized) {
         return _buildInitializingWidget();
       }
 
       // Show loading if no controller or not initialized, but only on first load
-      if ((controller == null || !controller.value.isInitialized) && _isFirstLoad) {
+      if ((controller == null || !controller.value.isInitialized) &&
+          _isFirstLoad) {
         // Skip showing "loading" if we're just switching to an already initialized video
         if (isAlreadyInitialized) {
           return Container(color: Colors.black);
@@ -115,7 +127,8 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
 
       // If the controller exists but isn't initialized and we're not on first load,
       // show a black screen instead of loading (for smooth transitions)
-      if ((controller == null || !controller.value.isInitialized) && !_isFirstLoad) {
+      if ((controller == null || !controller.value.isInitialized) &&
+          !_isFirstLoad) {
         return Container(color: Colors.black);
       }
 
@@ -267,6 +280,14 @@ class _ReelVideoPlayerState extends State<ReelVideoPlayer> {
       final isCurrent = widget.controller.isReelActive(widget.reel);
       if (isCurrent) {
         widget.controller.play();
+      }
+    } else if (!_isVisible.value && wasVisible) {
+      // When this reel goes off-screen, pause its controller if it's playing
+      final vc = widget.controller.getVideoControllerForReel(widget.reel);
+      if (vc != null) {
+        try {
+          vc.pause();
+        } catch (_) {}
       }
     }
   }

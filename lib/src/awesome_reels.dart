@@ -65,7 +65,7 @@ class AwesomeReels extends StatefulWidget {
   final void Function(ReelModel reel, Object error)? onVideoError;
 
   const AwesomeReels({
-    Key? key,
+    super.key,
     required this.reels,
     this.config = const ReelConfig(),
     this.initialIndex = 0,
@@ -89,7 +89,7 @@ class AwesomeReels extends StatefulWidget {
     this.overlayBuilder,
     this.errorBuilder,
     this.loadingBuilder,
-  }) : super(key: key);
+  });
 
   @override
   State<AwesomeReels> createState() => _AwesomeReelsState();
@@ -233,7 +233,8 @@ class _AwesomeReelsState extends State<AwesomeReels>
                 ? () => widget.onTap!(reel, _controller.currentPosition.value)
                 : null,
             onLongPress: widget.onLongPress != null
-                ? () => widget.onLongPress!(reel, _controller.currentPosition.value)
+                ? () =>
+                    widget.onLongPress!(reel, _controller.currentPosition.value)
                 : null,
             onLike: () => widget.onReelLiked?.call(reel),
             onShare: () => widget.onReelShared?.call(reel),
@@ -245,7 +246,6 @@ class _AwesomeReelsState extends State<AwesomeReels>
       ],
     );
   }
-
 }
 
 /// Extension methods for AwesomeReels
@@ -261,7 +261,7 @@ extension AwesomeReelsExtension on AwesomeReels {
     final reels = videoUrls.asMap().entries.map((entry) {
       return ReelModel(
         id: 'reel_${entry.key}_${DateTime.now().millisecondsSinceEpoch}',
-        videoUrl: entry.value,
+        videoUrl: entry.value, // kept for backward compatibility
       );
     }).toList();
 

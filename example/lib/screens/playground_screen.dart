@@ -282,8 +282,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
             ),
             const SizedBox(height: 16),
             Container(
-              height: 300,
-              width: 180,
+              height: 700,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white30),

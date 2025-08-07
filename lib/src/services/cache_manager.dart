@@ -498,10 +498,12 @@ class CacheStats {
   /// Get human readable size
   String get humanReadableSize {
     if (totalSize < 1024) return '${totalSize}B';
-    if (totalSize < 1024 * 1024)
+    if (totalSize < 1024 * 1024) {
       return '${(totalSize / 1024).toStringAsFixed(1)}KB';
-    if (totalSize < 1024 * 1024 * 1024)
+    }
+    if (totalSize < 1024 * 1024 * 1024) {
       return '${(totalSize / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(totalSize / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 

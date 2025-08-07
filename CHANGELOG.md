@@ -1,3 +1,21 @@
+## 0.0.5
+
+### 🎨 Example App Redesign
+- Modern blue-gradient theme for Home and Playground screens
+- New gradient feature cards, decorative orbs, and improved typography
+- Refreshed buttons and section cards with professional look-and-feel
+
+### 🔧 Core Playback Improvements
+- Ensure only a single video plays at a time when switching reels
+- Pause and detach previous controller on page change and controller switch
+- Preloaded controllers are initialized paused to prevent background audio
+- Pause off-screen reels via visibility detection
+
+### 🐛 Fixes
+- Mitigated black-screen-with-audio by guarding rendering until valid video size
+- Cleaned up controller listeners on dispose/switch
+- Replaced deprecated Color.withOpacity with Color.withValues
+
 ## 0.0.4
 
 * Updated README.md to reflect new features and usage examples
