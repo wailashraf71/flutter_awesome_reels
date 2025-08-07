@@ -281,6 +281,7 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
+
             Container(
               height: 700,
               decoration: BoxDecoration(
