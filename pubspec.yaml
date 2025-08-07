@@ -16,7 +16,7 @@ dependencies:
   video_player: ^2.10.0
   visibility_detector: ^0.4.0+2
   get: ^4.7.2
-  dio: ^5.8.0+1
+  dio: ^5.9.0
   path_provider: ^2.1.5
   lottie: ^3.3.1
 
@@ -27,16 +27,19 @@ dependencies:
   wakelock_plus: ^1.3.2
   device_info_plus: ^11.5.0
   iconly: ^1.0.1
-  font_awesome_flutter: ^10.8.0
+  font_awesome_flutter: ^10.9.0
   
   # Network and connectivity
   connectivity_plus: ^6.1.4
+
+  # New dependency
+  like_button: ^2.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  mockito: ^5.4.6
+  mockito: ^5.5.0
   build_runner: ^2.5.0
 
 flutter:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconly/iconly.dart';
+import 'package:like_button/like_button.dart';
 
 import '../controllers/reel_controller.dart';
 import '../models/reel_config.dart';
@@ -88,13 +89,35 @@ class _ReelActionsState extends State<ReelActions>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Like button
-        _buildActionButton(
-          icon: widget.reel.isLiked ? IconlyLight.heart : IconlyLight.heart,
-          iconColor: widget.reel.isLiked ? Colors.red : widget.config.textColor,
-          count: widget.reel.likesCount,
-          onTap: () => _handleLike(controller),
-          animation: _likeAnimation,
+        // Like button using LikeButton package
+        LikeButton(
+          isLiked: widget.reel.isLiked,
+          likeCount: widget.reel.likesCount,
+          size: 32,
+          countPostion: CountPostion.bottom,
+          likeCountAnimationType: LikeCountAnimationType.none,
+          likeBuilder: (bool isLiked) {
+            return Icon(
+              IconlyLight.heart,
+              color: isLiked ? Colors.red : widget.config.textColor,
+              size: 32,
+            );
+          },
+          countBuilder: (int? count, bool isLiked, String text) {
+            if (count == null || count == 0) return const SizedBox.shrink();
+            return Text(
+              ReelUtils.formatCount(count),
+              style: TextStyle(
+                color: widget.config.textColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            );
+          },
+          onTap: (isLiked) async {
+            _handleLike(controller);
+            return !isLiked;
+          },
         ),
         const SizedBox(height: 16),
         // Comment button
